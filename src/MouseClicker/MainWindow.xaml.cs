@@ -250,7 +250,7 @@ public partial class MainWindow : Window
         if (HoldTargetCombo.SelectedIndex >= 0) _settings.HoldTargetKind = (HoldTarget)HoldTargetCombo.SelectedIndex;
         if (HeldMouseCombo.SelectedIndex >= 0) _settings.HeldMouseButton = (ClickButton)HeldMouseCombo.SelectedIndex;
 
-        HeldMouseCombo.IsEnabled = _settings.HoldTargetKind != HoldTarget.Key;
+        HeldMouseCombo.Visibility = _settings.HoldTargetKind == HoldTarget.Key ? Visibility.Collapsed : Visibility.Visible;
         ApplyHoldConfig();
         _settings.Save();
         UpdateHoldStatus();
