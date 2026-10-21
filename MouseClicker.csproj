@@ -13,4 +13,9 @@
     <Version>1.0.0</Version>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Embedded so the window can draw its own taskbar and title bar icon. -->
+    <Resource Include="app.ico" />
+  </ItemGroup>
+
 </Project>

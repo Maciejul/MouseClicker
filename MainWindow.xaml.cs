@@ -21,6 +21,11 @@ public partial class MainWindow : Window
     private bool _hotkeyDown;             // Suppresses auto-repeat while the hotkey stays held.
     private bool _holdTriggerDown;        // Suppresses auto-repeat while the hold trigger stays held.
 
+    private static readonly System.Windows.Media.SolidColorBrush ActiveDotBrush = MakeFrozenBrush(0x16, 0xA3, 0x4A);
+    private static readonly System.Windows.Media.SolidColorBrush IdleDotBrush = MakeFrozenBrush(0x9C, 0xA3, 0xAF);
+    private System.Windows.Media.ImageSource? _activeIcon;
+    private System.Windows.Media.ImageSource? _idleIcon;
+
     private enum CaptureTarget
     {
         None,
@@ -315,6 +320,32 @@ public partial class MainWindow : Window
         bool active = clicking || holding;
         ActivityDot.Fill = (System.Windows.Media.Brush)FindResource(active ? "SuccessBrush" : "MutedBrush");
         ActivityText.Foreground = (System.Windows.Media.Brush)FindResource(active ? "TextBrush" : "MutedBrush");
+        Icon = active ? (_activeIcon ??= BuildIcon(ActiveDotBrush)) : (_idleIcon ??= BuildIcon(IdleDotBrush));
+    }
+
+    private static System.Windows.Media.SolidColorBrush MakeFrozenBrush(byte r, byte g, byte b)
+    {
+        var brush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+
+    // Draws the app icon with a status dot in the corner. Used for the title bar and taskbar.
+    private static System.Windows.Media.ImageSource BuildIcon(System.Windows.Media.Brush dot)
+    {
+        var appIcon = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/app.ico"));
+
+        var visual = new System.Windows.Media.DrawingVisual();
+        using (System.Windows.Media.DrawingContext context = visual.RenderOpen())
+        {
+            context.DrawImage(appIcon, new System.Windows.Rect(0, 0, 32, 32));
+            context.DrawEllipse(dot, new System.Windows.Media.Pen(System.Windows.Media.Brushes.White, 2), new System.Windows.Point(25, 25), 6, 6);
+        }
+
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(32, 32, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        bitmap.Freeze();
+        return bitmap;
     }
 
     private void OnStartButtonLockElapsed(object? sender, EventArgs e)
