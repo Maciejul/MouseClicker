@@ -10,13 +10,24 @@ public partial class MainWindow : Window
 {
     private readonly AppSettings _settings;
     private readonly ClickEngine _engine = new();
+    private readonly HoldEngine _holder = new();
     private readonly KeyboardHook _hook = new();
     private readonly DispatcherTimer _statsTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
+    private readonly DispatcherTimer _startButtonLock = new() { Interval = TimeSpan.FromSeconds(1) };
     private System.Windows.Forms.NotifyIcon? _tray;
 
-    private bool _ready;          // Guards handlers that fire while InitializeComponent runs.
-    private bool _capturing;      // True while waiting for a new hotkey.
-    private bool _hotkeyDown;     // Suppresses auto-repeat while the hotkey stays held.
+    private bool _ready;                  // Guards handlers that fire while InitializeComponent runs.
+    private CaptureTarget _capture;       // Which key button is waiting for a new key, if any.
+    private bool _hotkeyDown;             // Suppresses auto-repeat while the hotkey stays held.
+    private bool _holdTriggerDown;        // Suppresses auto-repeat while the hold trigger stays held.
+
+    private enum CaptureTarget
+    {
+        None,
+        Hotkey,
+        HoldTrigger,
+        HeldKey,
+    }
 
     public MainWindow()
     {
@@ -29,6 +40,12 @@ public partial class MainWindow : Window
         ToggleRadio.IsChecked = _settings.Mode == TriggerMode.Toggle;
         HoldRadio.IsChecked = _settings.Mode == TriggerMode.Hold;
         UpdateHotkeyText();
+        UpdateHoldTriggerText();
+        UpdateHeldKeyText();
+        HoldEnabledCheck.IsChecked = _settings.HoldEnabled;
+
+        _holder.Configure(_settings.HeldKeyVk);
+        UpdateHoldStatus();
 
         _hook.KeyDown += OnGlobalKeyDown;
         _hook.KeyUp += OnGlobalKeyUp;
@@ -40,6 +57,8 @@ public partial class MainWindow : Window
 
         _statsTimer.Tick += (_, _) => UpdateStats();
         _statsTimer.Start();
+
+        _startButtonLock.Tick += OnStartButtonLockElapsed;
     }
 
     private void UpdateStats()
@@ -87,6 +106,12 @@ public partial class MainWindow : Window
 
     private void OnStartStopClick(object sender, RoutedEventArgs e)
     {
+        // The clicker sends clicks at the cursor, which sits on this button right after Start.
+        // Lock the button briefly so those synthetic clicks cannot toggle it straight back off.
+        StartStopButton.IsEnabled = false;
+        _startButtonLock.Stop();
+        _startButtonLock.Start();
+
         if (_engine.IsRunning)
         {
             _engine.Stop();
@@ -100,35 +125,96 @@ public partial class MainWindow : Window
         UpdateStatus();
     }
 
-    private void OnHotkeyButtonClick(object sender, RoutedEventArgs e)
+    private void OnHotkeyButtonClick(object sender, RoutedEventArgs e) => StartCapture(CaptureTarget.Hotkey, HotkeyButton);
+
+    private void OnHoldTriggerButtonClick(object sender, RoutedEventArgs e) => StartCapture(CaptureTarget.HoldTrigger, HoldTriggerButton);
+
+    private void OnHeldKeyButtonClick(object sender, RoutedEventArgs e) => StartCapture(CaptureTarget.HeldKey, HeldKeyButton);
+
+    private void OnHoldEnabledChanged(object sender, RoutedEventArgs e)
     {
-        _capturing = true;
-        HotkeyButton.Content = "Press a key...";
+        if (!_ready) return;
+
+        _settings.HoldEnabled = HoldEnabledCheck.IsChecked == true;
+        if (!_settings.HoldEnabled) _holder.Release();
+
+        _settings.Save();
+        UpdateHoldStatus();
+    }
+
+    private void StartCapture(CaptureTarget target, System.Windows.Controls.Button button)
+    {
+        _capture = target;
+        button.Content = "Press a key...";
     }
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (!_capturing) return;
+        if (_capture == CaptureTarget.None) return;
 
         e.Handled = true;
         Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        CaptureTarget target = _capture;
+        _capture = CaptureTarget.None;
 
-        _capturing = false;
-        if (key == Key.Escape || key == Key.None)
+        if (key != Key.Escape && key != Key.None)
         {
-            UpdateHotkeyText();
-            return;
+            int vk = KeyInterop.VirtualKeyFromKey(key);
+
+            // The three keys share one global hook, so one key cannot drive two actions.
+            if (!IsKeyInUse(vk, except: target))
+            {
+                SetKeyForTarget(target, vk);
+                _settings.Save();
+            }
         }
 
-        _settings.HotkeyVk = KeyInterop.VirtualKeyFromKey(key);
         UpdateHotkeyText();
-        _settings.Save();
+        UpdateHoldTriggerText();
+        UpdateHeldKeyText();
+    }
+
+    private bool IsKeyInUse(int vk, CaptureTarget except)
+    {
+        return (except != CaptureTarget.Hotkey && vk == _settings.HotkeyVk)
+            || (except != CaptureTarget.HoldTrigger && vk == _settings.HoldTriggerVk)
+            || (except != CaptureTarget.HeldKey && vk == _settings.HeldKeyVk);
+    }
+
+    private void SetKeyForTarget(CaptureTarget target, int vk)
+    {
+        switch (target)
+        {
+            case CaptureTarget.Hotkey:
+                _settings.HotkeyVk = vk;
+                break;
+            case CaptureTarget.HoldTrigger:
+                _settings.HoldTriggerVk = vk;
+                break;
+            case CaptureTarget.HeldKey:
+                _settings.HeldKeyVk = vk;
+                _holder.Configure(vk);
+                UpdateHoldStatus();
+                break;
+        }
     }
 
     // Global hotkey handling. These run for every key press on the system, including while this window is not focused.
     private void OnGlobalKeyDown(int vk)
     {
-        if (_capturing || vk != _settings.HotkeyVk || _hotkeyDown) return;
+        if (_capture != CaptureTarget.None) return;
+
+        if (vk == _settings.HoldTriggerVk && _settings.HoldEnabled)
+        {
+            if (_holdTriggerDown) return;
+            _holdTriggerDown = true;
+
+            _holder.Toggle();
+            UpdateHoldStatus();
+            return;
+        }
+
+        if (vk != _settings.HotkeyVk || _hotkeyDown) return;
         _hotkeyDown = true;
 
         if (_settings.Mode == TriggerMode.Toggle)
@@ -154,6 +240,12 @@ public partial class MainWindow : Window
 
     private void OnGlobalKeyUp(int vk)
     {
+        if (vk == _settings.HoldTriggerVk)
+        {
+            _holdTriggerDown = false;
+            return;
+        }
+
         if (vk != _settings.HotkeyVk) return;
         _hotkeyDown = false;
 
@@ -189,6 +281,29 @@ public partial class MainWindow : Window
         HotkeyButton.Content = KeyInterop.KeyFromVirtualKey(_settings.HotkeyVk).ToString();
     }
 
+    private void UpdateHoldTriggerText()
+    {
+        HoldTriggerButton.Content = KeyInterop.KeyFromVirtualKey(_settings.HoldTriggerVk).ToString();
+    }
+
+    private void UpdateHeldKeyText()
+    {
+        HeldKeyButton.Content = KeyInterop.KeyFromVirtualKey(_settings.HeldKeyVk).ToString();
+    }
+
+    private void UpdateHoldStatus()
+    {
+        HoldStatusText.Text = _holder.IsHolding
+            ? $"Holding {KeyInterop.KeyFromVirtualKey(_settings.HeldKeyVk)} key"
+            : "Not holding";
+    }
+
+    private void OnStartButtonLockElapsed(object? sender, EventArgs e)
+    {
+        _startButtonLock.Stop();
+        StartStopButton.IsEnabled = true;
+    }
+
     private void UpdateStatus()
     {
         bool running = _engine.IsRunning;
@@ -199,10 +314,13 @@ public partial class MainWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _statsTimer.Stop();
+        _startButtonLock.Stop();
         _tray?.Dispose();
         _hook.KeyDown -= OnGlobalKeyDown;
         _hook.KeyUp -= OnGlobalKeyUp;
         _hook.Dispose();
         _engine.Dispose();
+        // Never leave the held key stuck down after the app exits.
+        _holder.Dispose();
     }
 }

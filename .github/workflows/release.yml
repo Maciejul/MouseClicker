@@ -1,0 +1,70 @@
+name: Release
+
+# Push to main: build the app, then publish a GitHub release if the <Version> in
+# MouseClicker.csproj has no tag yet. Each release has a portable exe and a setup installer.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Read version and check for an existing release
+        id: ver
+        run: |
+          $csproj = Get-Content MouseClicker.csproj -Raw
+          $v = [regex]::Match($csproj, '<Version>([^<]+)</Version>').Groups[1].Value
+          if (-not $v) { throw 'No <Version> found' }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          gh release view "v$v" *> $null
+          $exists = $LASTEXITCODE -eq 0
+          "release=$(if ($exists) { 'false' } else { 'true' })" >> $env:GITHUB_OUTPUT
+          if ($exists) { "v$v already released; nothing to publish." }
+          exit 0
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Publish portable exe
+        if: steps.ver.outputs.release == 'true'
+        # Self-contained single file, so it runs without a .NET install.
+        run: >
+          dotnet publish MouseClicker.csproj -c Release -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=none
+          -o publish/portable
+
+      - name: Build setup installer
+        if: steps.ver.outputs.release == 'true'
+        run: |
+          New-Item -ItemType Directory -Force stage | Out-Null
+          choco install innosetup --no-progress -y
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          & $iscc "/DAppVersion=${{ steps.ver.outputs.version }}" "/DSourceDir=$PWD\publish\portable" "/O$PWD\stage" installer\MouseClicker.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
+
+      - name: Package portable zip
+        if: steps.ver.outputs.release == 'true'
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          Compress-Archive publish/portable/MouseClicker.exe "stage/MouseClicker-$v-portable-x64.zip"
+
+      - name: Publish release
+        if: steps.ver.outputs.release == 'true'
+        run: gh release create "v${{ steps.ver.outputs.version }}" "stage/MouseClicker-Setup-${{ steps.ver.outputs.version }}.exe" "stage/MouseClicker-${{ steps.ver.outputs.version }}-portable-x64.zip" --target "${{ github.sha }}" --title "v${{ steps.ver.outputs.version }}" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

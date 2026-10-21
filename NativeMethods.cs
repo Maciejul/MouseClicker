@@ -13,6 +13,8 @@ internal static class NativeMethods
     public const uint INPUT_MOUSE = 0;
     public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
     public const uint MOUSEEVENTF_LEFTUP = 0x0004;
+    public const uint INPUT_KEYBOARD = 1;
+    public const uint KEYEVENTF_KEYUP = 0x0002;
 
     public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -31,11 +33,23 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
-    [StructLayout(LayoutKind.Sequential)]
+    // Mouse and keyboard data share one union, which starts at offset 8 on 64-bit Windows (the app runs x64 here).
+    [StructLayout(LayoutKind.Explicit)]
     public struct INPUT
     {
-        public uint type;
-        public MOUSEINPUT mi;
+        [FieldOffset(0)] public uint type;
+        [FieldOffset(8)] public MOUSEINPUT mi;
+        [FieldOffset(8)] public KEYBDINPUT ki;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KEYBDINPUT
+    {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -57,6 +71,16 @@ internal static class NativeMethods
         inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
         inputs[1].type = INPUT_MOUSE;
         inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+        SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+    }
+
+    /// <summary>Sends a key press or release for a virtual-key code.</summary>
+    public static void SendKey(ushort vk, bool down)
+    {
+        var inputs = new INPUT[1];
+        inputs[0].type = INPUT_KEYBOARD;
+        inputs[0].ki.wVk = vk;
+        inputs[0].ki.dwFlags = down ? 0 : KEYEVENTF_KEYUP;
         SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
     }
 }

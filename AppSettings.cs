@@ -24,6 +24,15 @@ internal sealed class AppSettings
 
     public TriggerMode Mode { get; set; } = TriggerMode.Toggle;
 
+    /// <summary>Win32 virtual-key code of the key that starts and releases the held mouse button. 0x76 is F7.</summary>
+    public int HoldTriggerVk { get; set; } = 0x76;
+
+    /// <summary>Whether the hold trigger is active. When off, the trigger key does nothing and any held key is released.</summary>
+    public bool HoldEnabled { get; set; } = true;
+
+    /// <summary>Win32 virtual-key code of the key that stays pressed while the hold trigger is active. 0x57 is W.</summary>
+    public int HeldKeyVk { get; set; } = 0x57;
+
     /// <summary>Show a Windows notification each time clicking starts.</summary>
     public bool NotifyOnStart { get; set; }
 
