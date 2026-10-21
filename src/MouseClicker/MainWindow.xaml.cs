@@ -252,12 +252,29 @@ public partial class MainWindow : Window
 
         // Show an option's details only while the option is in use.
         HeldMouseCombo.Visibility = _settings.HoldTargetKind == HoldTarget.Key ? Visibility.Collapsed : Visibility.Visible;
+        PlaceMouseCombo(besideKey: _settings.HoldTargetKind == HoldTarget.Both);
+        Visibility keyVisibility = _settings.HoldTargetKind == HoldTarget.Mouse ? Visibility.Collapsed : Visibility.Visible;
+        HeldKeyLabel.Visibility = keyVisibility;
+        HeldKeyRow.Visibility = keyVisibility;
         MaxHoldPanel.Visibility = _settings.SingleTap == SingleTapBehavior.WhileDown ? Visibility.Visible : Visibility.Collapsed;
         TimedPanel.Visibility = _settings.HoldTimedEnabled ? Visibility.Visible : Visibility.Collapsed;
         ExtendRow.Visibility = _settings.ExtendOnTap ? Visibility.Visible : Visibility.Collapsed;
         ApplyHoldConfig();
         _settings.Save();
         UpdateHoldStatus();
+    }
+
+    // Moves the mouse button list under "What to hold", or beside the key button when both are held.
+    private void PlaceMouseCombo(bool besideKey)
+    {
+        Border target = besideKey ? MouseSlotKey : MouseSlotTop;
+        if (ReferenceEquals(target.Child, HeldMouseCombo)) return;
+
+        // A control has one parent, so take it out of the other slot first.
+        MouseSlotTop.Child = null;
+        MouseSlotKey.Child = null;
+        HeldMouseCombo.Width = besideKey ? 112 : double.NaN;
+        target.Child = HeldMouseCombo;
     }
 
     private void ApplyHoldConfig()
