@@ -146,7 +146,7 @@
             <Border Margin="0,16,0,0" Style="{StaticResource Card}" HorizontalAlignment="Stretch">
                 <StackPanel>
 
-                    <CheckBox x:Name="HoldEnabledCheck" Content="Enable hold trigger" Checked="OnHoldEnabledChanged" Unchecked="OnHoldEnabledChanged" Margin="0,0,0,4" />
+                    <ToggleButton x:Name="HoldEnabledCheck" Style="{StaticResource SwitchButton}" Content="Hold trigger" Checked="OnHoldEnabledChanged" Unchecked="OnHoldEnabledChanged" Margin="0,0,0,12" />
                     <CheckBox x:Name="StopOnHeldKeyCheck" Content="Stop hold when I press or release the held key" Checked="OnStopOnHeldKeyChanged" Unchecked="OnStopOnHeldKeyChanged" Margin="0,0,0,12" />
 
                     <Separator Margin="0,0,0,12" />

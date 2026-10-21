@@ -141,7 +141,14 @@
                                 CornerRadius="6">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}" />
+                                              Margin="{TemplateBinding Padding}">
+                                <!-- The app-wide TextBlock style would otherwise turn the label dark. -->
+                                <ContentPresenter.Resources>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="White" />
+                                    </Style>
+                                </ContentPresenter.Resources>
+                            </ContentPresenter>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -172,6 +179,59 @@
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.45" />
                             </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Master on/off switch: grey with OFF, green with ON. The state is written out too, not only colored. -->
+        <Style x:Key="SwitchButton" TargetType="ToggleButton">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd"
+                                Background="{StaticResource FieldBrush}"
+                                BorderBrush="{StaticResource FieldBorderBrush}"
+                                BorderThickness="1.5"
+                                CornerRadius="6"
+                                Padding="14,0">
+                            <Grid>
+                                <TextBlock x:Name="Label"
+                                           Text="{TemplateBinding Content}"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Left"
+                                           Foreground="{StaticResource TextBrush}" />
+                                <TextBlock x:Name="State"
+                                           Text="OFF"
+                                           FontWeight="Bold"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Right"
+                                           Foreground="{StaticResource MutedBrush}" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource ControlHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SuccessBrush}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource SuccessBrush}" />
+                                <Setter TargetName="Label" Property="Foreground" Value="White" />
+                                <Setter TargetName="State" Property="Foreground" Value="White" />
+                                <Setter TargetName="State" Property="Text" Value="ON" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True" />
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SuccessHoverBrush}" />
+                            </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
