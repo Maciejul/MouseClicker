@@ -174,7 +174,7 @@
                             <TextBlock Style="{StaticResource HintText}" Text="0 means no limit." Margin="0,0,0,14" />
 
                             <TextBlock Style="{StaticResource SectionLabel}" Text="TIMED HOLD" />
-                            <CheckBox x:Name="HoldTimedCheck" Content="Double / triple tap holds for a set time" Checked="OnHoldOptionsChanged" Unchecked="OnHoldOptionsChanged" Margin="0,0,0,8" />
+                            <CheckBox x:Name="HoldTimedCheck" Content="Multiple taps hold for a set time" Checked="OnHoldOptionsChanged" Unchecked="OnHoldOptionsChanged" Margin="0,0,0,8" />
                             <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
