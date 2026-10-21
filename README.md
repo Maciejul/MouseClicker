@@ -62,3 +62,17 @@ Pushing to `main` runs the release workflow (`.github/workflows/release.yml`). I
 ## Settings
 
 Settings are saved to `%APPDATA%\MouseClicker\settings.json`.
+
+## Screenshots
+
+**Clicker**
+
+![Clicker tab](docs/screenshots/clicker.png)
+
+**Hold**
+
+![Hold tab](docs/screenshots/hold.png)
+
+**Settings**
+
+![Settings tab](docs/screenshots/settings.png)
