@@ -65,6 +65,10 @@ jobs:
 
       - name: Publish release
         if: steps.ver.outputs.release == 'true'
-        run: gh release create "v${{ steps.ver.outputs.version }}" "stage/MouseClicker-Setup-${{ steps.ver.outputs.version }}.exe" "stage/MouseClicker-${{ steps.ver.outputs.version }}-portable-x64.zip" --target "${{ github.sha }}" --title "v${{ steps.ver.outputs.version }}" --generate-notes
+        # Notes come from release-notes/v<version>.md when it exists, otherwise from the commit list.
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          $notes = if (Test-Path "release-notes/v$v.md") { @('--notes-file', "release-notes/v$v.md") } else { @('--generate-notes') }
+          gh release create "v$v" "stage/MouseClicker-Setup-$v.exe" "stage/MouseClicker-$v-portable-x64.zip" --target "${{ github.sha }}" --title "v$v" @notes
         env:
           GH_TOKEN: ${{ github.token }}

@@ -57,7 +57,7 @@ dotnet publish src/MouseClicker/MouseClicker.csproj -c Release -r win-x64 --self
 
 ## Releases
 
-Pushing to `main` runs the release workflow (`.github/workflows/release.yml`). It creates a GitHub release only when the `<Version>` in `src/MouseClicker/MouseClicker.csproj` has not been released yet, so bump the version before pushing a new release.
+Pushing to `main` runs the release workflow (`.github/workflows/release.yml`). It creates a GitHub release only when the `<Version>` in `src/MouseClicker/MouseClicker.csproj` has not been released yet, so bump the version before pushing a new release. If `release-notes/v<version>.md` exists it is used as the release notes; otherwise they are generated from the commits.
 
 ## Settings
 
