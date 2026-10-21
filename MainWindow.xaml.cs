@@ -296,6 +296,25 @@ public partial class MainWindow : Window
         HoldStatusText.Text = _holder.IsHolding
             ? $"Holding {KeyInterop.KeyFromVirtualKey(_settings.HeldKeyVk)} key"
             : "Not holding";
+        UpdateActivityStatus();
+    }
+
+    private void UpdateActivityStatus()
+    {
+        bool clicking = _engine.IsRunning;
+        bool holding = _holder.IsHolding;
+
+        ActivityText.Text = (clicking, holding) switch
+        {
+            (true, true) => "Mouse clicker + Hold active",
+            (true, false) => "Mouse clicker active",
+            (false, true) => "Hold active",
+            _ => "Idle",
+        };
+
+        bool active = clicking || holding;
+        ActivityDot.Fill = (System.Windows.Media.Brush)FindResource(active ? "SuccessBrush" : "MutedBrush");
+        ActivityText.Foreground = (System.Windows.Media.Brush)FindResource(active ? "TextBrush" : "MutedBrush");
     }
 
     private void OnStartButtonLockElapsed(object? sender, EventArgs e)
@@ -309,6 +328,7 @@ public partial class MainWindow : Window
         bool running = _engine.IsRunning;
         StatusText.Text = running ? "Clicking..." : "Stopped";
         StartStopButton.Content = running ? "Stop" : "Start";
+        UpdateActivityStatus();
     }
 
     private void OnClosed(object? sender, EventArgs e)

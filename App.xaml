@@ -17,6 +17,7 @@
         <Color x:Key="ControlHoverColor">#EEF2FF</Color>
         <Color x:Key="ControlPressedColor">#E0E7FF</Color>
         <Color x:Key="DangerColor">#DC2626</Color>
+        <Color x:Key="SuccessColor">#16A34A</Color>
 
         <SolidColorBrush x:Key="WindowBg" Color="{StaticResource WindowBgColor}" />
         <SolidColorBrush x:Key="CardBg" Color="{StaticResource CardColor}" />
@@ -29,6 +30,7 @@
         <SolidColorBrush x:Key="ControlBrush" Color="{StaticResource ControlColor}" />
         <SolidColorBrush x:Key="ControlHoverBrush" Color="{StaticResource ControlHoverColor}" />
         <SolidColorBrush x:Key="ControlPressedBrush" Color="{StaticResource ControlPressedColor}" />
+        <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
 
         <Style x:Key="SectionLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12" />
