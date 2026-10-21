@@ -9,6 +9,7 @@
         FontFamily="Segoe UI"
         FontSize="13"
         PreviewKeyDown="OnPreviewKeyDown"
+        StateChanged="OnStateChanged"
         Closed="OnClosed">
     <Grid Margin="16">
     <TabControl Background="Transparent" BorderThickness="0">
@@ -19,7 +20,7 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource Card}">
+                <Border Grid.Column="0" Style="{StaticResource Card}" VerticalAlignment="Top">
                     <StackPanel>
 
                         <TextBlock Style="{StaticResource SectionLabel}" Text="TIMING" />
@@ -78,24 +79,66 @@
                     </StackPanel>
                 </Border>
 
-                <Border Grid.Column="1" Margin="16,0,0,0" Style="{StaticResource Card}" VerticalAlignment="Top">
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="CLICKS" />
-                        <TextBlock x:Name="ClickCountText"
-                                   Text="0"
-                                   FontSize="40"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource AccentBrush}"
-                                   Margin="0,0,0,18" />
+                <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Top">
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="CLICKS" />
+                            <TextBlock x:Name="ClickCountText"
+                                       Text="0"
+                                       FontSize="40"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       Margin="0,0,0,18" />
 
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="LAST CLICK" />
-                        <TextBlock x:Name="LastClickText"
-                                   Text="-"
-                                   FontFamily="Consolas"
-                                   FontSize="18"
-                                   Foreground="{StaticResource TextBrush}" />
-                    </StackPanel>
-                </Border>
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="LAST CLICK" />
+                            <TextBlock x:Name="LastClickText"
+                                       Text="-"
+                                       FontFamily="Consolas"
+                                       FontSize="18"
+                                       Foreground="{StaticResource TextBrush}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="CLICK" />
+                            <ComboBox x:Name="ClickButtonCombo" Margin="0,0,0,8" SelectionChanged="OnClickOptionsChanged">
+                                <ComboBoxItem Content="Left button" />
+                                <ComboBoxItem Content="Right button" />
+                                <ComboBoxItem Content="Middle button" />
+                            </ComboBox>
+                            <CheckBox x:Name="DoubleClickCheck" Content="Double click" Checked="OnClickOptionsChanged" Unchecked="OnClickOptionsChanged" />
+
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="CLICK AT" Margin="0,14,0,6" />
+                            <ComboBox x:Name="ClickTargetCombo" Margin="0,0,0,8" SelectionChanged="OnClickTargetChanged">
+                                <ComboBoxItem Content="Cursor position" />
+                                <ComboBoxItem Content="Fixed screen point" />
+                                <ComboBoxItem Content="Spot in a window" />
+                            </ComboBox>
+                            <Button x:Name="CaptureButton" Content="Capture (3 s)" Click="OnCaptureClick" HorizontalAlignment="Left" />
+                            <TextBlock x:Name="TargetText" Style="{StaticResource HintText}" Margin="0,6,0,0" />
+
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="AUTO-STOP" Margin="0,14,0,6" />
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="After clicks" VerticalAlignment="Center" />
+                                <TextBox x:Name="StopClicksBox" Grid.Column="1" Width="64" TextAlignment="Right" TextChanged="OnClickNumberChanged" />
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="After minutes" VerticalAlignment="Center" />
+                                <TextBox x:Name="StopMinutesBox" Grid.Column="1" Width="64" TextAlignment="Right" TextChanged="OnClickNumberChanged" />
+                            </Grid>
+                            <TextBlock Style="{StaticResource HintText}" Text="0 means no limit." Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </Grid>
         </TabItem>
 
@@ -104,18 +147,82 @@
                 <StackPanel>
 
                     <CheckBox x:Name="HoldEnabledCheck" Content="Enable hold trigger" Checked="OnHoldEnabledChanged" Unchecked="OnHoldEnabledChanged" Margin="0,0,0,4" />
-                <CheckBox x:Name="StopOnHeldKeyCheck" Content="Stop hold when I press or release the held key" Checked="OnStopOnHeldKeyChanged" Unchecked="OnStopOnHeldKeyChanged" Margin="0,0,0,4" />
-                    <TextBlock Style="{StaticResource HintText}" Text="Press the trigger key to start holding the key below. Press it again to release." Margin="0,0,0,12" />
+                    <CheckBox x:Name="StopOnHeldKeyCheck" Content="Stop hold when I press or release the held key" Checked="OnStopOnHeldKeyChanged" Unchecked="OnStopOnHeldKeyChanged" Margin="0,0,0,12" />
 
-                    <Separator Margin="0,4,0,12" />
+                    <Separator Margin="0,0,0,12" />
 
-                    <TextBlock Style="{StaticResource SectionLabel}" Text="TRIGGER KEY" />
-                    <Button x:Name="HoldTriggerButton" Style="{StaticResource KeyButton}" Click="OnHoldTriggerButtonClick" />
-                    <TextBlock Style="{StaticResource HintText}" Text="Click to change. Esc cancels." Margin="0,6,0,0" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="24" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                    <TextBlock Style="{StaticResource SectionLabel}" Text="KEY TO HOLD" Margin="0,16,0,6" />
-                    <Button x:Name="HeldKeyButton" Style="{StaticResource KeyButton}" Click="OnHeldKeyButtonClick" />
-                    <TextBlock Style="{StaticResource HintText}" Text="Click to change. Esc cancels." Margin="0,6,0,0" />
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="SINGLE TAP" />
+                            <RadioButton x:Name="TapToggleRadio" GroupName="Tap" Content="Toggle on / off" Margin="0,0,0,4" Checked="OnHoldOptionsChanged" />
+                            <RadioButton x:Name="TapWhileRadio" GroupName="Tap" Content="Hold while the key is pressed" Margin="0,0,0,4" Checked="OnHoldOptionsChanged" />
+                            <RadioButton x:Name="TapNoneRadio" GroupName="Tap" Content="Do nothing" Margin="0,0,0,8" Checked="OnHoldOptionsChanged" />
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Max while pressed (s)" VerticalAlignment="Center" />
+                                <TextBox x:Name="MaxHoldBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
+                            </Grid>
+                            <TextBlock Style="{StaticResource HintText}" Text="0 means no limit." Margin="0,0,0,14" />
+
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="TIMED HOLD" />
+                            <CheckBox x:Name="HoldTimedCheck" Content="Double / triple tap holds for a set time" Checked="OnHoldOptionsChanged" Unchecked="OnHoldOptionsChanged" Margin="0,0,0,8" />
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Double tap (s)" VerticalAlignment="Center" />
+                                <TextBox x:Name="DoubleTapBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
+                            </Grid>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Triple tap (s)" VerticalAlignment="Center" />
+                                <TextBox x:Name="TripleTapBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
+                            </Grid>
+                            <CheckBox x:Name="ExtendCheck" Content="Tapping during a timed hold adds time" Checked="OnHoldOptionsChanged" Unchecked="OnHoldOptionsChanged" Margin="0,0,0,6" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Time added (s)" VerticalAlignment="Center" />
+                                <TextBox x:Name="ExtendBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="WHAT TO HOLD" />
+                            <ComboBox x:Name="HoldTargetCombo" Margin="0,0,0,6" SelectionChanged="OnHoldOptionsChanged">
+                                <ComboBoxItem Content="Keyboard key" />
+                                <ComboBoxItem Content="Mouse button" />
+                                <ComboBoxItem Content="Key and mouse button" />
+                            </ComboBox>
+                            <ComboBox x:Name="HeldMouseCombo" SelectionChanged="OnHoldOptionsChanged">
+                                <ComboBoxItem Content="Left button" />
+                                <ComboBoxItem Content="Right button" />
+                                <ComboBoxItem Content="Middle button" />
+                            </ComboBox>
+
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="TRIGGER KEY" Margin="0,16,0,6" />
+                            <Button x:Name="HoldTriggerButton" Style="{StaticResource KeyButton}" Click="OnHoldTriggerButtonClick" />
+
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="KEY TO HOLD" Margin="0,16,0,6" />
+                            <Button x:Name="HeldKeyButton" Style="{StaticResource KeyButton}" Click="OnHeldKeyButtonClick" />
+                            <TextBlock Style="{StaticResource HintText}" Text="Click a key button to change it. Esc cancels." Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Grid>
 
                     <Border Margin="0,18,0,0"
                             Padding="12,10"
@@ -123,6 +230,37 @@
                             CornerRadius="6">
                         <TextBlock x:Name="HoldStatusText" Text="Not holding" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
                     </Border>
+                </StackPanel>
+            </Border>
+        </TabItem>
+
+        <TabItem Header="Settings">
+            <Border Margin="0,16,0,0" Style="{StaticResource Card}" HorizontalAlignment="Stretch">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SectionLabel}" Text="PROFILES" />
+                    <ComboBox x:Name="ProfileCombo" Margin="0,0,0,8" SelectionChanged="OnProfileSelected" />
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="ProfileNameBox" Grid.Column="0" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="Save" Margin="0,0,8,0" Click="OnProfileSave" />
+                        <Button Grid.Column="2" Content="Delete" Click="OnProfileDelete" />
+                    </Grid>
+                    <TextBlock Style="{StaticResource HintText}" Text="A profile stores the clicker and hold settings. Save under a new name to add one, or under an existing name to replace it." />
+
+                    <TextBlock Style="{StaticResource SectionLabel}" Text="NEXT PROFILE KEY" Margin="0,16,0,6" />
+                    <Button x:Name="ProfileKeyButton" Style="{StaticResource KeyButton}" Click="OnProfileKeyButtonClick" />
+
+                    <Separator Margin="0,16,0,12" />
+
+                    <TextBlock Style="{StaticResource SectionLabel}" Text="STARTUP" />
+                    <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows" Checked="OnStartupChanged" Unchecked="OnStartupChanged" Margin="0,0,0,4" />
+                    <CheckBox x:Name="StartMinimizedCheck" Content="Start minimized" Checked="OnStartupChanged" Unchecked="OnStartupChanged" Margin="0,0,0,4" />
+                    <CheckBox x:Name="MinimizeToTrayCheck" Content="Minimize to the tray" Checked="OnStartupChanged" Unchecked="OnStartupChanged" />
+                    <TextBlock Style="{StaticResource HintText}" Text="Start minimized only applies when it starts with Windows. It goes to the tray when that is on." Margin="0,6,0,0" />
                 </StackPanel>
             </Border>
         </TabItem>
@@ -150,6 +288,19 @@
                            Foreground="{StaticResource MutedBrush}"
                            VerticalAlignment="Center" />
             </StackPanel>
+        </Border>
+
+        <!-- Short messages appear here, at the top of the window -->
+        <Border x:Name="ToastBorder"
+                Visibility="Collapsed"
+                Panel.ZIndex="10"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin="0,4,0,0"
+                Padding="14,7"
+                Background="{StaticResource AccentBrush}"
+                CornerRadius="14">
+            <TextBlock x:Name="ToastText" Foreground="White" FontSize="12" FontWeight="SemiBold" />
         </Border>
     </Grid>
 </Window>

@@ -1,6 +1,6 @@
 # Mouse Clicker
 
-A small Windows app that clicks the left mouse button repeatedly, or holds a keyboard key down, with a global hotkey.
+A small Windows app that clicks the mouse repeatedly, or holds a key or mouse button down, with global hotkeys.
 
 ## Features
 
@@ -9,17 +9,27 @@ A small Windows app that clicks the left mouse button repeatedly, or holds a key
 - Random jitter of up to 50% so clicks don't land on an exact rhythm.
 - **Toggle** mode: press the hotkey once to start, again to stop.
 - **Hold** mode: clicks only while the hotkey is held down.
+- Left, right or middle button, with an optional double click.
+- Click at the cursor, at a fixed screen point, or at a spot inside a window (found again by process name).
+- Auto-stop after a number of clicks or minutes.
 - Optional Windows notification when clicking starts.
 - Click counter and last-click time.
 - Default hotkey: F6 (changeable).
 
 ### Hold
 - Press the trigger key (default F7) to start holding a key (default W). Press it again to release.
+- Hold a keyboard key, a mouse button, or both.
+- Single tap: toggle on and off, hold while the trigger is pressed (with an optional maximum time), or do nothing.
+- **Timed hold**: a double tap holds for a set time (default 5 s) and a triple tap for another (default 10 s). Optionally, tapping during a timed hold adds time. The time left shows in the status pill.
 - Enable or disable the trigger with **Enable hold trigger**.
 - **Stop hold when I press or release the held key**: releases the held key when you press or release that key yourself (off by default).
 - The held key is pressed again when the window you are using changes, so the hold is not lost when you switch windows.
 
-The three keys (hotkey, trigger, held key) must be different.
+### Settings
+- **Profiles**: save named sets of clicker and hold settings, and switch between them from a list or with a key (default F8).
+- Start with Windows, start minimized, and minimize to the tray.
+
+The four keys (hotkey, trigger, held key, next profile) must be different.
 
 ### Status
 - The Start/Stop button turns green while clicking is running.

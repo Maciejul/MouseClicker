@@ -13,6 +13,10 @@ internal static class NativeMethods
     public const uint INPUT_MOUSE = 0;
     public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
     public const uint MOUSEEVENTF_LEFTUP = 0x0004;
+    public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
+    public const uint MOUSEEVENTF_RIGHTUP = 0x0010;
+    public const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
+    public const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
     public const uint INPUT_KEYBOARD = 1;
     public const uint KEYEVENTF_KEYUP = 0x0002;
 
@@ -66,14 +70,80 @@ internal static class NativeMethods
         public IntPtr dwExtraInfo;
     }
 
-    /// <summary>Sends a left click at the current cursor position.</summary>
-    public static void ClickLeft()
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT
     {
-        var inputs = new INPUT[2];
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    private const uint GA_ROOT = 2;
+
+    [DllImport("user32.dll")]
+    public static extern bool SetCursorPos(int x, int y);
+
+    [DllImport("user32.dll")]
+    public static extern bool GetCursorPos(out POINT point);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr WindowFromPoint(POINT point);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
+
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsWindow(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+
+    /// <summary>Returns the top-level window under a screen point, or zero if there is none.</summary>
+    public static IntPtr RootWindowFromPoint(POINT point)
+    {
+        IntPtr hwnd = WindowFromPoint(point);
+        return hwnd == IntPtr.Zero ? IntPtr.Zero : GetAncestor(hwnd, GA_ROOT);
+    }
+
+    private static (uint Down, uint Up) MouseFlags(ClickButton button) => button switch
+    {
+        ClickButton.Right => (MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP),
+        ClickButton.Middle => (MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP),
+        _ => (MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP),
+    };
+
+    /// <summary>Sends a click, or a double click, with the given mouse button at the current cursor position.</summary>
+    public static void Click(ClickButton button, bool doubleClick)
+    {
+        var (down, up) = MouseFlags(button);
+        var inputs = new INPUT[doubleClick ? 4 : 2];
+        for (int i = 0; i < inputs.Length; i++)
+        {
+            inputs[i].type = INPUT_MOUSE;
+            inputs[i].mi.dwFlags = i % 2 == 0 ? down : up;
+        }
+
+        SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+    }
+
+    /// <summary>Presses or releases a mouse button without clicking.</summary>
+    public static void SendMouse(ClickButton button, bool isDown)
+    {
+        var (down, up) = MouseFlags(button);
+        var inputs = new INPUT[1];
         inputs[0].type = INPUT_MOUSE;
-        inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-        inputs[1].type = INPUT_MOUSE;
-        inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+        inputs[0].mi.dwFlags = isDown ? down : up;
         SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
     }
 
