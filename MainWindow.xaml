@@ -105,6 +105,7 @@
                 <StackPanel>
 
                     <CheckBox x:Name="HoldEnabledCheck" Content="Enable hold trigger" Checked="OnHoldEnabledChanged" Unchecked="OnHoldEnabledChanged" Margin="0,0,0,4" />
+                <CheckBox x:Name="StopOnHeldKeyCheck" Content="Stop hold when I press or release the held key" Checked="OnStopOnHeldKeyChanged" Unchecked="OnStopOnHeldKeyChanged" Margin="0,0,0,4" />
                     <TextBlock Style="{StaticResource HintText}" Text="Press the trigger key to start holding the key below. Press it again to release." Margin="0,0,0,12" />
 
                     <Separator Margin="0,4,0,12" />

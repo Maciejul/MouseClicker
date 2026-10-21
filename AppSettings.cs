@@ -30,6 +30,9 @@ internal sealed class AppSettings
     /// <summary>Whether the hold trigger is active. When off, the trigger key does nothing and any held key is released.</summary>
     public bool HoldEnabled { get; set; } = true;
 
+    /// <summary>Release a held key when you physically press or release that same key.</summary>
+    public bool StopHoldOnHeldKey { get; set; }
+
     /// <summary>Win32 virtual-key code of the key that stays pressed while the hold trigger is active. 0x57 is W.</summary>
     public int HeldKeyVk { get; set; } = 0x57;
 

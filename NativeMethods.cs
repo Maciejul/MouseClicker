@@ -33,6 +33,9 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
     // Mouse and keyboard data share one union, which starts at offset 8 on 64-bit Windows (the app runs x64 here).
     [StructLayout(LayoutKind.Explicit)]
     public struct INPUT

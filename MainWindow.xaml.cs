@@ -14,6 +14,9 @@ public partial class MainWindow : Window
     private readonly KeyboardHook _hook = new();
     private readonly DispatcherTimer _statsTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly DispatcherTimer _startButtonLock = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _focusWatch = new() { Interval = TimeSpan.FromMilliseconds(200) };
+    private readonly DispatcherTimer _repressTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
+    private IntPtr _lastForeground;
     private System.Windows.Forms.NotifyIcon? _tray;
 
     private bool _ready;                  // Guards handlers that fire while InitializeComponent runs.
@@ -49,6 +52,7 @@ public partial class MainWindow : Window
         UpdateHoldTriggerText();
         UpdateHeldKeyText();
         HoldEnabledCheck.IsChecked = _settings.HoldEnabled;
+        StopOnHeldKeyCheck.IsChecked = _settings.StopHoldOnHeldKey;
 
         _holder.Configure(_settings.HeldKeyVk);
         UpdateHoldStatus();
@@ -65,6 +69,25 @@ public partial class MainWindow : Window
         _statsTimer.Start();
 
         _startButtonLock.Tick += OnStartButtonLockElapsed;
+
+        _focusWatch.Tick += OnFocusWatchTick;
+        _focusWatch.Start();
+
+        _repressTimer.Tick += (_, _) =>
+        {
+            _repressTimer.Stop();
+            _holder.Reassert();
+        };
+    }
+
+    private void OnFocusWatchTick(object? sender, EventArgs e)
+    {
+        IntPtr foreground = NativeMethods.GetForegroundWindow();
+        if (foreground == _lastForeground) return;
+        _lastForeground = foreground;
+
+        // Windows drops the injected key state when focus moves between windows, so press the held key again.
+        _holder.Reassert();
     }
 
     private void UpdateStats()
@@ -171,6 +194,14 @@ public partial class MainWindow : Window
 
     private void OnHeldKeyButtonClick(object sender, RoutedEventArgs e) => StartCapture(CaptureTarget.HeldKey, HeldKeyButton);
 
+    private void OnStopOnHeldKeyChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+
+        _settings.StopHoldOnHeldKey = StopOnHeldKeyCheck.IsChecked == true;
+        _settings.Save();
+    }
+
     private void OnHoldEnabledChanged(object sender, RoutedEventArgs e)
     {
         if (!_ready) return;
@@ -240,9 +271,15 @@ public partial class MainWindow : Window
     }
 
     // Global hotkey handling. These run for every key press on the system, including while this window is not focused.
-    private void OnGlobalKeyDown(int vk)
+    private void OnGlobalKeyDown(int vk, bool injected)
     {
         if (_capture != CaptureTarget.None) return;
+
+        if (!injected && vk == _settings.HeldKeyVk && _settings.StopHoldOnHeldKey)
+        {
+            _holder.Release();
+            UpdateHoldStatus();
+        }
 
         if (vk == _settings.HoldTriggerVk && _settings.HoldEnabled)
         {
@@ -278,12 +315,26 @@ public partial class MainWindow : Window
         UpdateStatus();
     }
 
-    private void OnGlobalKeyUp(int vk)
+    private void OnGlobalKeyUp(int vk, bool injected)
     {
         if (vk == _settings.HoldTriggerVk)
         {
             _holdTriggerDown = false;
             return;
+        }
+
+        if (!injected && vk == _settings.HeldKeyVk && _settings.StopHoldOnHeldKey)
+        {
+            _holder.Release();
+            UpdateHoldStatus();
+        }
+
+        // A real press of the held key clears the injected key state, so press it again if the hold is still on.
+        // Wait briefly so the press lands after the physical release, not in the same frame.
+        if (!injected && vk == _settings.HeldKeyVk)
+        {
+            _repressTimer.Stop();
+            _repressTimer.Start();
         }
 
         if (vk != _settings.HotkeyVk) return;
@@ -419,6 +470,8 @@ public partial class MainWindow : Window
     {
         _statsTimer.Stop();
         _startButtonLock.Stop();
+        _focusWatch.Stop();
+        _repressTimer.Stop();
         _tray?.Dispose();
         _hook.KeyDown -= OnGlobalKeyDown;
         _hook.KeyUp -= OnGlobalKeyUp;

@@ -32,6 +32,12 @@ internal sealed class HoldEngine : IDisposable
         IsHolding = true;
     }
 
+    /// <summary>Presses the held key down again without changing state. Used when focus returns to a window that lost the key.</summary>
+    public void Reassert()
+    {
+        if (IsHolding) NativeMethods.SendKey((ushort)_vk, down: true);
+    }
+
     public void Release()
     {
         if (!IsHolding) return;
