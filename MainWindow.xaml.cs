@@ -20,6 +20,8 @@ public partial class MainWindow : Window
     private CaptureTarget _capture;       // Which key button is waiting for a new key, if any.
     private bool _hotkeyDown;             // Suppresses auto-repeat while the hotkey stays held.
     private bool _holdTriggerDown;        // Suppresses auto-repeat while the hold trigger stays held.
+    private bool _syncingInterval;        // Stops the slider and the number box from updating each other in a loop.
+    private const int MaxIntervalMs = 1000;
 
     private System.Windows.Media.ImageSource? _activeIcon;
     private System.Windows.Media.ImageSource? _idleIcon;
@@ -37,7 +39,8 @@ public partial class MainWindow : Window
         _settings = AppSettings.Load();
         InitializeComponent();
 
-        IntervalBox.Text = _settings.IntervalMs.ToString();
+        IntervalBox.Text = Math.Clamp(_settings.IntervalMs, 10, MaxIntervalMs).ToString();
+        IntervalSlider.Value = Math.Clamp(_settings.IntervalMs, 10, 500);
         JitterSlider.Value = _settings.JitterPercent;
         NotifyCheck.IsChecked = _settings.NotifyOnStart;
         ToggleRadio.IsChecked = _settings.Mode == TriggerMode.Toggle;
@@ -74,9 +77,9 @@ public partial class MainWindow : Window
     {
         if (!_ready) return;
 
-        if (int.TryParse(IntervalBox.Text, out int ms) && ms is >= 10 and <= 60000)
+        if (int.TryParse(IntervalBox.Text, out int ms))
         {
-            _settings.IntervalMs = ms;
+            _settings.IntervalMs = Math.Clamp(ms, 10, MaxIntervalMs);
         }
 
         _settings.JitterPercent = (int)JitterSlider.Value;
@@ -87,7 +90,41 @@ public partial class MainWindow : Window
         _settings.Save();
     }
 
-    private void OnIntervalChanged(object sender, TextChangedEventArgs e) => PushSettings();
+    private void OnIntervalChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_ready || _syncingInterval) return;
+
+        if (int.TryParse(IntervalBox.Text, out int ms))
+        {
+            // Typed values above the maximum are clamped to it.
+            if (ms > MaxIntervalMs)
+            {
+                ms = MaxIntervalMs;
+                _syncingInterval = true;
+                IntervalBox.Text = ms.ToString();
+                IntervalBox.CaretIndex = IntervalBox.Text.Length;
+                _syncingInterval = false;
+            }
+
+            // Typed values above the slider's range leave the slider at its maximum.
+            _syncingInterval = true;
+            IntervalSlider.Value = Math.Clamp(ms, 10, 500);
+            _syncingInterval = false;
+        }
+
+        PushSettings();
+    }
+
+    private void OnIntervalSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_ready || _syncingInterval) return;
+
+        _syncingInterval = true;
+        IntervalBox.Text = ((int)e.NewValue).ToString();
+        _syncingInterval = false;
+
+        PushSettings();
+    }
 
     private void OnNotifyChanged(object sender, RoutedEventArgs e) => PushSettings();
 
