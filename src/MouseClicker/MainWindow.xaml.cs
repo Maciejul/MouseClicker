@@ -462,7 +462,6 @@ public partial class MainWindow : Window
     private void UpdateStatus()
     {
         bool running = _engine.IsRunning;
-        StatusText.Text = running ? "Clicking..." : "Stopped";
         StartStopButton.Content = running ? "Stop" : "Start";
         StartStopButton.Tag = running ? "Running" : null;
         UpdateActivityStatus();
