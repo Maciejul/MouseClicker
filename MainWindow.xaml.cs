@@ -331,21 +331,35 @@ public partial class MainWindow : Window
     }
 
     // Draws the app icon with a status dot in the corner. Used for the title bar and taskbar.
-    private static System.Windows.Media.ImageSource BuildIcon(System.Windows.Media.Brush dot)
+    // Returns null if the icon cannot be drawn, which leaves the default window icon in place.
+    private static System.Windows.Media.ImageSource? BuildIcon(System.Windows.Media.Brush dot)
     {
-        var appIcon = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/app.ico"));
-
-        var visual = new System.Windows.Media.DrawingVisual();
-        using (System.Windows.Media.DrawingContext context = visual.RenderOpen())
+        try
         {
-            context.DrawImage(appIcon, new System.Windows.Rect(0, 0, 32, 32));
-            context.DrawEllipse(dot, new System.Windows.Media.Pen(System.Windows.Media.Brushes.White, 2), new System.Windows.Point(25, 25), 6, 6);
-        }
+            // The app's own icon is embedded in the exe, so read it from there.
+            using System.Drawing.Icon exeIcon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath!)!;
+            var appIcon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
+                exeIcon.Handle,
+                System.Windows.Int32Rect.Empty,
+                System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
 
-        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(32, 32, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-        bitmap.Render(visual);
-        bitmap.Freeze();
-        return bitmap;
+            var visual = new System.Windows.Media.DrawingVisual();
+            using (System.Windows.Media.DrawingContext context = visual.RenderOpen())
+            {
+                context.DrawImage(appIcon, new System.Windows.Rect(0, 0, 32, 32));
+                context.DrawEllipse(dot, new System.Windows.Media.Pen(System.Windows.Media.Brushes.White, 2), new System.Windows.Point(25, 25), 6, 6);
+            }
+
+            var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(32, 32, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            return bitmap;
+        }
+        catch (Exception)
+        {
+            // The status icon is cosmetic; never let it stop the window from opening.
+            return null;
+        }
     }
 
     private void OnStartButtonLockElapsed(object? sender, EventArgs e)
