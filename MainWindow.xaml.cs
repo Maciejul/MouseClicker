@@ -42,6 +42,8 @@ public partial class MainWindow : Window
         _settings = AppSettings.Load();
         InitializeComponent();
 
+        Title = $"Mouse Clicker v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3)}";
+
         IntervalBox.Text = Math.Clamp(_settings.IntervalMs, 10, MaxIntervalMs).ToString();
         IntervalSlider.Value = Math.Clamp(_settings.IntervalMs, 10, 500);
         JitterSlider.Value = _settings.JitterPercent;
