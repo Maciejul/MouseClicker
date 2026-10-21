@@ -36,18 +36,18 @@ Download the latest `MouseClicker-Setup-<version>.exe` from the [Releases](https
 Requires the .NET 8 SDK (Windows).
 
 ```powershell
-dotnet build MouseClicker.csproj -c Release
+dotnet build src/MouseClicker/MouseClicker.csproj -c Release
 ```
 
 To create a single-file exe:
 
 ```powershell
-dotnet publish MouseClicker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o publish/portable
+dotnet publish src/MouseClicker/MouseClicker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o publish/portable
 ```
 
 ## Releases
 
-Pushing to `main` runs the release workflow (`.github/workflows/release.yml`). It creates a GitHub release only when the `<Version>` in `MouseClicker.csproj` has not been released yet, so bump the version before pushing a new release.
+Pushing to `main` runs the release workflow (`.github/workflows/release.yml`). It creates a GitHub release only when the `<Version>` in `src/MouseClicker/MouseClicker.csproj` has not been released yet, so bump the version before pushing a new release.
 
 ## Settings
 

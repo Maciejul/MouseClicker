@@ -2,7 +2,7 @@
 # Re-run to update an existing install. Creates a Start Menu shortcut.
 $ErrorActionPreference = 'Stop'
 
-$project = Join-Path $PSScriptRoot 'MouseClicker.csproj'
+$project = Join-Path $PSScriptRoot 'src\MouseClicker\MouseClicker.csproj'
 $publish = Join-Path $PSScriptRoot 'publish'
 $target = Join-Path $env:LOCALAPPDATA 'Programs\MouseClicker'
 $exe = Join-Path $target 'MouseClicker.exe'
