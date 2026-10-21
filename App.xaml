@@ -31,6 +31,8 @@
         <SolidColorBrush x:Key="ControlHoverBrush" Color="{StaticResource ControlHoverColor}" />
         <SolidColorBrush x:Key="ControlPressedBrush" Color="{StaticResource ControlPressedColor}" />
         <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
+        <SolidColorBrush x:Key="SuccessHoverBrush" Color="#15803D" />
+        <SolidColorBrush x:Key="SuccessPressedBrush" Color="#166534" />
 
         <Style x:Key="SectionLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12" />
@@ -140,6 +142,25 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentPressedBrush}" />
                             </Trigger>
+                            <!-- Running state: the Start/Stop button shows green. Set from code via Tag. -->
+                            <Trigger Property="Tag" Value="Running">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SuccessBrush}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource SuccessBrush}" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Tag" Value="Running" />
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SuccessHoverBrush}" />
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Tag" Value="Running" />
+                                    <Condition Property="IsPressed" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SuccessPressedBrush}" />
+                            </MultiTrigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.45" />
                             </Trigger>

@@ -21,8 +21,6 @@ public partial class MainWindow : Window
     private bool _hotkeyDown;             // Suppresses auto-repeat while the hotkey stays held.
     private bool _holdTriggerDown;        // Suppresses auto-repeat while the hold trigger stays held.
 
-    private static readonly System.Windows.Media.SolidColorBrush ActiveDotBrush = MakeFrozenBrush(0x16, 0xA3, 0x4A);
-    private static readonly System.Windows.Media.SolidColorBrush IdleDotBrush = MakeFrozenBrush(0x9C, 0xA3, 0xAF);
     private System.Windows.Media.ImageSource? _activeIcon;
     private System.Windows.Media.ImageSource? _idleIcon;
 
@@ -320,38 +318,41 @@ public partial class MainWindow : Window
         bool active = clicking || holding;
         ActivityDot.Fill = (System.Windows.Media.Brush)FindResource(active ? "SuccessBrush" : "MutedBrush");
         ActivityText.Foreground = (System.Windows.Media.Brush)FindResource(active ? "TextBrush" : "MutedBrush");
-        Icon = active ? (_activeIcon ??= BuildIcon(ActiveDotBrush)) : (_idleIcon ??= BuildIcon(IdleDotBrush));
+        Icon = active ? (_activeIcon ??= BuildIcon(recolorGreen: true)) : (_idleIcon ??= BuildIcon(recolorGreen: false));
     }
 
-    private static System.Windows.Media.SolidColorBrush MakeFrozenBrush(byte r, byte g, byte b)
-    {
-        var brush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
-        brush.Freeze();
-        return brush;
-    }
-
-    // Draws the app icon with a status dot in the corner. Used for the title bar and taskbar.
-    // Returns null if the icon cannot be drawn, which leaves the default window icon in place.
-    private static System.Windows.Media.ImageSource? BuildIcon(System.Windows.Media.Brush dot)
+    // Builds the app icon for the title bar and taskbar. When recolorGreen is set, the blue and green
+    // channels are swapped, which turns the icon's blue into green and keeps its shading.
+    // Returns null if the icon cannot be built, which leaves the default window icon in place.
+    private static System.Windows.Media.ImageSource? BuildIcon(bool recolorGreen)
     {
         try
         {
             // The app's own icon is embedded in the exe, so read it from there.
             using System.Drawing.Icon exeIcon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath!)!;
-            var appIcon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
+            var source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
                 exeIcon.Handle,
                 System.Windows.Int32Rect.Empty,
                 System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
 
-            var visual = new System.Windows.Media.DrawingVisual();
-            using (System.Windows.Media.DrawingContext context = visual.RenderOpen())
+            var converted = new System.Windows.Media.Imaging.FormatConvertedBitmap(source, System.Windows.Media.PixelFormats.Pbgra32, null, 0);
+            int width = converted.PixelWidth;
+            int height = converted.PixelHeight;
+            int stride = width * 4;
+            byte[] pixels = new byte[stride * height];
+            converted.CopyPixels(pixels, stride, 0);
+
+            if (recolorGreen)
             {
-                context.DrawImage(appIcon, new System.Windows.Rect(0, 0, 32, 32));
-                context.DrawEllipse(dot, new System.Windows.Media.Pen(System.Windows.Media.Brushes.White, 2), new System.Windows.Point(25, 25), 6, 6);
+                // Pixels are stored as B, G, R, A. Swapping B and G moves blue into the green channel.
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    (pixels[i], pixels[i + 1]) = (pixels[i + 1], pixels[i]);
+                }
             }
 
-            var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(32, 32, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-            bitmap.Render(visual);
+            var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(
+                width, height, 96, 96, System.Windows.Media.PixelFormats.Pbgra32, null, pixels, stride);
             bitmap.Freeze();
             return bitmap;
         }
@@ -373,6 +374,7 @@ public partial class MainWindow : Window
         bool running = _engine.IsRunning;
         StatusText.Text = running ? "Clicking..." : "Stopped";
         StartStopButton.Content = running ? "Stop" : "Start";
+        StartStopButton.Tag = running ? "Running" : null;
         UpdateActivityStatus();
     }
 
