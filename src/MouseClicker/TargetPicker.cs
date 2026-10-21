@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace MouseClicker;
 
 /// <summary>A screen position, plus the window under it and the position relative to that window.</summary>
-internal readonly record struct PickedTarget(int X, int Y, string? Process, int OffsetX, int OffsetY);
+internal readonly record struct PickedTarget(int X, int Y, string? Process, int OffsetX, int OffsetY, bool Elevated);
 
 internal static class TargetPicker
 {
@@ -15,6 +15,7 @@ internal static class TargetPicker
         string? process = null;
         int offsetX = 0;
         int offsetY = 0;
+        bool elevated = false;
 
         IntPtr hwnd = NativeMethods.RootWindowFromPoint(point);
         if (hwnd != IntPtr.Zero && NativeMethods.GetWindowRect(hwnd, out var rect))
@@ -25,6 +26,7 @@ internal static class TargetPicker
                 process = Process.GetProcessById((int)pid).ProcessName;
                 offsetX = point.X - rect.Left;
                 offsetY = point.Y - rect.Top;
+                elevated = NativeMethods.IsWindowElevated(hwnd) == true;
             }
             catch (Exception)
             {
@@ -33,6 +35,6 @@ internal static class TargetPicker
             }
         }
 
-        return new PickedTarget(point.X, point.Y, process, offsetX, offsetY);
+        return new PickedTarget(point.X, point.Y, process, offsetX, offsetY, elevated);
     }
 }

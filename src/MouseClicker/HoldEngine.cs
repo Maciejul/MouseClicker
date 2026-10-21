@@ -3,10 +3,20 @@ namespace MouseClicker;
 /// <summary>Holds a key, a mouse button, or both until told to release them. Runs on the UI thread, alongside the keyboard hook.</summary>
 internal sealed class HoldEngine : IDisposable
 {
+    private readonly IInputSink _input;
+    private readonly TimeProvider _time;
     private int _vk;
     private HoldTarget _target = HoldTarget.Key;
     private ClickButton _button = ClickButton.Left;
-    private long _endsAt;   // TickCount64 at which a timed hold ends; 0 when the hold has no timer.
+    private long _endsAt;   // NowMs at which a timed hold ends; 0 when the hold has no timer.
+
+    public HoldEngine(IInputSink? input = null, TimeProvider? time = null)
+    {
+        _input = input ?? new SystemInput();
+        _time = time ?? TimeProvider.System;
+    }
+
+    private long NowMs => (long)_time.GetElapsedTime(0, _time.GetTimestamp()).TotalMilliseconds;
 
     public bool IsHolding { get; private set; }
 
@@ -14,7 +24,7 @@ internal sealed class HoldEngine : IDisposable
     public bool IsTimed => IsHolding && _endsAt != 0;
 
     public int RemainingWholeSeconds => IsTimed
-        ? (int)Math.Ceiling(Math.Max(0, _endsAt - Environment.TickCount64) / 1000.0)
+        ? (int)Math.Ceiling(Math.Max(0, _endsAt - NowMs) / 1000.0)
         : 0;
 
     private bool UsesKey => _target != HoldTarget.Mouse;
@@ -43,8 +53,8 @@ internal sealed class HoldEngine : IDisposable
     {
         if (IsHolding) return;
 
-        if (UsesKey) NativeMethods.SendKey((ushort)_vk, down: true);
-        if (UsesMouse) NativeMethods.SendMouse(_button, isDown: true);
+        if (UsesKey) _input.SendKey((ushort)_vk, down: true);
+        if (UsesMouse) _input.SendMouse(_button, down: true);
         IsHolding = true;
     }
 
@@ -52,7 +62,7 @@ internal sealed class HoldEngine : IDisposable
     public void StartTimed(double seconds)
     {
         Press();
-        _endsAt = Environment.TickCount64 + (long)(Math.Max(1, seconds) * 1000);
+        _endsAt = NowMs + (long)(Math.Max(1, seconds) * 1000);
     }
 
     /// <summary>Adds time to a timed hold, without letting the time left go past the cap.</summary>
@@ -60,7 +70,7 @@ internal sealed class HoldEngine : IDisposable
     {
         if (!IsTimed) return;
 
-        long now = Environment.TickCount64;
+        long now = NowMs;
         long extended = Math.Min(_endsAt + (long)(seconds * 1000), now + (long)(capSeconds * 1000));
         _endsAt = Math.Max(_endsAt, extended);
     }
@@ -68,7 +78,7 @@ internal sealed class HoldEngine : IDisposable
     /// <summary>Releases the hold if its timer has run out. Returns true when it did.</summary>
     public bool Tick()
     {
-        if (!IsTimed || Environment.TickCount64 < _endsAt) return false;
+        if (!IsTimed || NowMs < _endsAt) return false;
 
         Release();
         return true;
@@ -77,15 +87,15 @@ internal sealed class HoldEngine : IDisposable
     /// <summary>Presses the held key down again without changing state. Used when focus returns to a window that lost the key.</summary>
     public void Reassert()
     {
-        if (IsHolding && UsesKey) NativeMethods.SendKey((ushort)_vk, down: true);
+        if (IsHolding && UsesKey) _input.SendKey((ushort)_vk, down: true);
     }
 
     public void Release()
     {
         if (!IsHolding) return;
 
-        if (UsesMouse) NativeMethods.SendMouse(_button, isDown: false);
-        if (UsesKey) NativeMethods.SendKey((ushort)_vk, down: false);
+        if (UsesMouse) _input.SendMouse(_button, down: false);
+        if (UsesKey) _input.SendKey((ushort)_vk, down: false);
         IsHolding = false;
         _endsAt = 0;
     }

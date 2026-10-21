@@ -13,15 +13,16 @@ public partial class MainWindow : Window
     private readonly ClickEngine _engine = new();
     private readonly HoldEngine _holder = new();
     private readonly KeyboardHook _hook = new();
-    private readonly DispatcherTimer _statsTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
+    private readonly HoldTriggerController _trigger;
+    private readonly TrayService _tray = new();
+    private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private readonly DispatcherTimer _statsTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private readonly DispatcherTimer _startButtonLock = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _focusWatch = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private readonly DispatcherTimer _repressTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
-    private readonly DispatcherTimer _pendingTimedStop = new() { Interval = TimeSpan.FromMilliseconds(TapWindowMs) };
     private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(3) };
     private readonly DispatcherTimer _captureTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private IntPtr _lastForeground;
-    private System.Windows.Forms.NotifyIcon? _tray;
 
     private bool _ready;                  // Guards handlers that fire while the controls are being filled in.
     private CaptureTarget _capture;       // Which key button is waiting for a new key, if any.
@@ -32,16 +33,10 @@ public partial class MainWindow : Window
     private bool _launchedMinimized;
     private int _captureCountdown;
 
-    // Tap counting for the hold trigger.
-    private int _tapCount;
-    private long _lastTapTick;
-    private bool _timedBeforeTap;         // Whether a timed hold was already running when this run of taps began.
-    private bool _downHold;               // The current hold lasts only while the trigger key is down.
     private int _shownRemaining = -1;     // Whole seconds last drawn for a timed hold, so the text only redraws on change.
 
     private const int MaxIntervalMs = 1000;
-    private const int TapWindowMs = 400;
-    private const int MaxTimedSeconds = 300;
+    private const int MaxTimedSeconds = HoldTriggerController.MaxTimedSeconds;
 
     private System.Windows.Media.ImageSource? _activeIcon;
     private System.Windows.Media.ImageSource? _idleIcon;
@@ -58,6 +53,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         _settings = AppSettings.Load();
+        _trigger = new HoldTriggerController(_holder, () => _settings, HeldDescription);
         InitializeComponent();
 
         Title = $"Mouse Clicker v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3)}";
@@ -68,13 +64,33 @@ public partial class MainWindow : Window
 
         _hook.KeyDown += OnGlobalKeyDown;
         _hook.KeyUp += OnGlobalKeyUp;
-        _hook.Install();
+        bool hookInstalled = _hook.Install();
 
         _ready = true;
         PushSettings();
         PushHoldSettings();
         UpdateStatus();
         UpdateTrayVisibility();
+
+        if (!hookInstalled)
+        {
+            ShowToast("Hotkeys unavailable: Windows refused the keyboard hook");
+        }
+
+        _saveTimer.Tick += (_, _) => FlushSave();
+
+        _tray.OpenRequested += RestoreFromTray;
+        _tray.ExitRequested += Close;
+
+        _trigger.Message += ShowToast;
+        _trigger.HoldChanged += () =>
+        {
+            _shownRemaining = -1;
+            UpdateHoldStatus();
+        };
+
+        SystemEvents.SessionSwitch += OnSessionSwitch;
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
 
         _statsTimer.Tick += OnStatsTick;
         _statsTimer.Start();
@@ -88,17 +104,6 @@ public partial class MainWindow : Window
         {
             _repressTimer.Stop();
             _holder.Reassert();
-        };
-
-        _pendingTimedStop.Tick += (_, _) =>
-        {
-            // No second tap arrived, so the tap meant "stop".
-            _pendingTimedStop.Stop();
-            if (!_holder.IsTimed) return;
-
-            _holder.Release();
-            UpdateHoldStatus();
-            ShowToast($"Released {HeldDescription()}");
         };
 
         _toastTimer.Tick += (_, _) =>
@@ -188,15 +193,8 @@ public partial class MainWindow : Window
         ClickCountText.Text = _engine.ClickCount.ToString("N0");
         LastClickText.Text = _engine.LastClickTime?.ToString("HH:mm:ss.fff") ?? "-";
 
-        string description = HeldDescription();
-        if (_holder.Tick())
-        {
-            _downHold = false;
-            _shownRemaining = -1;
-            UpdateHoldStatus();
-            ShowToast($"Released {description}");
-        }
-        else if (_holder.IsTimed)
+        _trigger.Poll();
+        if (_holder.IsTimed)
         {
             int remaining = _holder.RemainingWholeSeconds;
             if (remaining != _shownRemaining)
@@ -231,7 +229,7 @@ public partial class MainWindow : Window
         _settings.StopAfterMinutes = ReadInt(StopMinutesBox, 0, 100_000, _settings.StopAfterMinutes);
 
         _engine.Configure(_settings.IntervalMs, _settings.JitterPercent, ClickOptions.From(_settings));
-        _settings.Save();
+        QueueSave();
     }
 
     private void PushHoldSettings()
@@ -262,14 +260,14 @@ public partial class MainWindow : Window
         TimedPanel.Visibility = _settings.HoldTimedEnabled ? Visibility.Visible : Visibility.Collapsed;
         ExtendRow.Visibility = _settings.ExtendOnTap ? Visibility.Visible : Visibility.Collapsed;
         ApplyHoldConfig();
-        _settings.Save();
+        QueueSave();
         UpdateHoldStatus();
     }
 
     private void ApplyHoldConfig()
     {
         _holder.Configure(_settings.HeldKeyVk, _settings.HoldTargetKind, _settings.HeldMouseButton);
-        if (!_holder.IsHolding) _downHold = false;
+        _trigger.Sync();
     }
 
     private void OnIntervalChanged(object sender, TextChangedEventArgs e)
@@ -368,7 +366,7 @@ public partial class MainWindow : Window
         if (!_ready) return;
 
         _settings.StopHoldOnHeldKey = StopOnHeldKeyCheck.IsChecked == true;
-        _settings.Save();
+        QueueSave();
     }
 
     private void OnHoldEnabledChanged(object sender, RoutedEventArgs e)
@@ -378,12 +376,11 @@ public partial class MainWindow : Window
         _settings.HoldEnabled = HoldEnabledCheck.IsChecked == true;
         if (!_settings.HoldEnabled)
         {
-            _pendingTimedStop.Stop();
-            _downHold = false;
+            _trigger.Cancel();
             _holder.Release();
         }
 
-        _settings.Save();
+        QueueSave();
         UpdateHoldStatus();
     }
 
@@ -427,6 +424,10 @@ public partial class MainWindow : Window
         else if (picked.Process is null)
         {
             ShowToast("No window found at that spot");
+        }
+        else if (picked.Elevated && !IsAppElevated())
+        {
+            ShowToast("That window runs as administrator; run Mouse Clicker as administrator to click in it");
         }
         else
         {
@@ -481,7 +482,7 @@ public partial class MainWindow : Window
             if (!IsKeyInUse(vk, except: target))
             {
                 SetKeyForTarget(target, vk);
-                _settings.Save();
+                QueueSave();
             }
         }
 
@@ -527,8 +528,7 @@ public partial class MainWindow : Window
 
         if (!injected && vk == _settings.HeldKeyVk && _settings.StopHoldOnHeldKey)
         {
-            _pendingTimedStop.Stop();
-            _downHold = false;
+            _trigger.Cancel();
             _holder.Release();
             UpdateHoldStatus();
         }
@@ -538,7 +538,7 @@ public partial class MainWindow : Window
             if (_holdTriggerDown) return;
             _holdTriggerDown = true;
 
-            HandleTriggerDown();
+            _trigger.TriggerDown();
             UpdateHoldStatus();
             return;
         }
@@ -581,15 +581,7 @@ public partial class MainWindow : Window
         if (vk == _settings.HoldTriggerVk)
         {
             _holdTriggerDown = false;
-
-            // A hold that lasts while the key is down ends with the key, unless a double tap turned it into a timed hold.
-            if (_downHold)
-            {
-                _downHold = false;
-                _holder.Release();
-                UpdateHoldStatus();
-            }
-
+            _trigger.TriggerUp();
             return;
         }
 
@@ -601,8 +593,7 @@ public partial class MainWindow : Window
 
         if (!injected && vk == _settings.HeldKeyVk && _settings.StopHoldOnHeldKey)
         {
-            _pendingTimedStop.Stop();
-            _downHold = false;
+            _trigger.Cancel();
             _holder.Release();
             UpdateHoldStatus();
         }
@@ -623,69 +614,6 @@ public partial class MainWindow : Window
             _engine.Stop();
             UpdateStatus();
         }
-    }
-
-    // Hold trigger taps -------------------------------------------------------------------------------------------
-
-    private void HandleTriggerDown()
-    {
-        // Taps only group into doubles and triples when timed holds are on; otherwise every press is a single tap.
-        long now = Environment.TickCount64;
-        _tapCount = _settings.HoldTimedEnabled && now - _lastTapTick <= TapWindowMs ? _tapCount + 1 : 1;
-        _lastTapTick = now;
-
-        if (_tapCount == 1) HandleFirstTap();
-        else HandleMoreTaps();
-    }
-
-    private void HandleFirstTap()
-    {
-        _timedBeforeTap = _holder.IsTimed;
-
-        if (_holder.IsTimed && _settings.ExtendOnTap && _settings.HoldTimedEnabled)
-        {
-            // A second tap inside the window adds time. If none comes, the tap meant "stop".
-            _pendingTimedStop.Stop();
-            _pendingTimedStop.Start();
-            return;
-        }
-
-        if (_holder.IsHolding)
-        {
-            _downHold = false;
-            _holder.Release();
-            return;
-        }
-
-        switch (_settings.SingleTap)
-        {
-            case SingleTapBehavior.Toggle:
-                _holder.Press();
-                break;
-
-            case SingleTapBehavior.WhileDown:
-                _holder.Press();
-                _downHold = true;
-                if (_settings.MaxHoldSeconds > 0) _holder.StartTimed(_settings.MaxHoldSeconds);
-                break;
-        }
-    }
-
-    private void HandleMoreTaps()
-    {
-        _pendingTimedStop.Stop();
-
-        if (_timedBeforeTap && _settings.ExtendOnTap)
-        {
-            _holder.Extend(_settings.ExtendSeconds, MaxTimedSeconds);
-            ShowToast($"+{_settings.ExtendSeconds} s");
-            return;
-        }
-
-        _downHold = false;
-        int seconds = _tapCount >= 3 ? _settings.TripleTapSeconds : _settings.DoubleTapSeconds;
-        _holder.StartTimed(seconds);
-        _shownRemaining = -1;
     }
 
     // Profiles ----------------------------------------------------------------------------------------------------
@@ -711,26 +639,11 @@ public partial class MainWindow : Window
 
     private void OnProfileSave(object sender, RoutedEventArgs e)
     {
-        string name = ProfileNameBox.Text.Trim();
-        if (name.Length == 0) name = $"Profile {_settings.Profiles.Count + 1}";
-
         PushSettings();
         PushHoldSettings();
-        AppSettings snapshot = _settings.Snapshot();
 
-        Profile? existing = _settings.Profiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
-        if (existing is null)
-        {
-            _settings.Profiles.Add(new Profile { Name = name, Data = snapshot });
-        }
-        else
-        {
-            name = existing.Name;
-            existing.Data = snapshot;
-        }
-
-        _settings.ActiveProfile = name;
-        _settings.Save();
+        string name = _settings.SaveProfile(ProfileNameBox.Text);
+        QueueSave();
         RefreshProfileCombo();
         ShowToast($"Saved profile {name}");
     }
@@ -738,46 +651,44 @@ public partial class MainWindow : Window
     private void OnProfileDelete(object sender, RoutedEventArgs e)
     {
         if (ProfileCombo.SelectedItem is not string name) return;
+        if (!_settings.DeleteProfile(name)) return;
 
-        _settings.Profiles.RemoveAll(p => p.Name == name);
-        _settings.ActiveProfile = null;
-        _settings.Save();
+        QueueSave();
         RefreshProfileCombo();
         ShowToast($"Deleted profile {name}");
     }
 
     private void NextProfile()
     {
-        if (_settings.Profiles.Count == 0)
+        Profile? next = _settings.NextProfile();
+        if (next is null)
         {
             ShowToast("No profiles saved");
             return;
         }
 
-        int index = _settings.Profiles.FindIndex(p => p.Name == _settings.ActiveProfile);
-        ApplyProfileByName(_settings.Profiles[(index + 1) % _settings.Profiles.Count].Name);
+        ApplyProfileByName(next.Name);
     }
 
     private void ApplyProfileByName(string name)
     {
-        Profile? profile = _settings.Profiles.FirstOrDefault(p => p.Name == name);
+        Profile? profile = _settings.FindProfile(name);
         if (profile is null) return;
 
         // Stop whatever the old profile was doing so its keys and timers do not carry over.
         _engine.Stop();
-        _pendingTimedStop.Stop();
-        _downHold = false;
+        _trigger.Cancel();
         _holder.Release();
 
         _settings.ApplyProfile(profile.Data);
-        _settings.ActiveProfile = name;
+        _settings.ActiveProfile = profile.Name;
 
         LoadUi();
         ApplyHoldConfig();
         PushSettings();
         PushHoldSettings();
         UpdateStatus();
-        ShowToast($"Profile: {name}");
+        ShowToast($"Profile: {profile.Name}");
     }
 
     // Startup and tray --------------------------------------------------------------------------------------------
@@ -789,71 +700,15 @@ public partial class MainWindow : Window
         _settings.StartWithWindows = StartWithWindowsCheck.IsChecked == true;
         _settings.StartMinimized = StartMinimizedCheck.IsChecked == true;
         _settings.MinimizeToTray = MinimizeToTrayCheck.IsChecked == true;
-        _settings.Save();
+        QueueSave();
 
-        ApplyStartup();
+        StartupRegistration.Apply(_settings.StartWithWindows, _settings.StartMinimized);
         UpdateTrayVisibility();
     }
 
-    private void ApplyStartup()
-    {
-        try
-        {
-            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable: true);
-            if (key is null) return;
+    private void UpdateTrayVisibility() => _tray.SetPermanent(_settings.MinimizeToTray);
 
-            if (_settings.StartWithWindows)
-            {
-                string command = $"\"{Environment.ProcessPath}\"" + (_settings.StartMinimized ? " --minimized" : "");
-                key.SetValue("MouseClicker", command);
-            }
-            else
-            {
-                key.DeleteValue("MouseClicker", throwOnMissingValue: false);
-            }
-        }
-        catch (Exception)
-        {
-            // Autostart is a convenience; the app still works if the registry is locked down.
-        }
-    }
-
-    private void EnsureTray()
-    {
-        if (_tray is not null) return;
-
-        System.Drawing.Icon icon;
-        try
-        {
-            icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath!) ?? System.Drawing.SystemIcons.Application;
-        }
-        catch (Exception)
-        {
-            icon = System.Drawing.SystemIcons.Application;
-        }
-
-        var menu = new System.Windows.Forms.ContextMenuStrip();
-        menu.Items.Add("Open", null, (_, _) => RestoreFromTray());
-        menu.Items.Add("Exit", null, (_, _) => Close());
-
-        _tray = new System.Windows.Forms.NotifyIcon { Icon = icon, Text = "Mouse Clicker", ContextMenuStrip = menu };
-        _tray.DoubleClick += (_, _) => RestoreFromTray();
-    }
-
-    private void UpdateTrayVisibility()
-    {
-        if (_settings.MinimizeToTray)
-        {
-            EnsureTray();
-            _tray!.Visible = true;
-        }
-        else if (_tray is not null)
-        {
-            _tray.Visible = false;
-        }
-    }
-
-    private void RestoreFromTray()
+    internal void RestoreFromTray()
     {
         Show();
         WindowState = WindowState.Normal;
@@ -869,17 +724,97 @@ public partial class MainWindow : Window
     {
         if (!_settings.NotifyOnStart) return;
 
-        EnsureTray();
-        // The tray icon only needs to exist for the balloon; hide it again once the notification is dismissed.
-        _tray!.BalloonTipClosed -= OnBalloonClosed;
-        _tray.BalloonTipClosed += OnBalloonClosed;
-        _tray.Visible = true;
-        _tray.ShowBalloonTip(3000, "Mouse Clicker", $"Clicking every {_settings.IntervalMs} ms. Total clicks: {_engine.ClickCount:N0}", System.Windows.Forms.ToolTipIcon.Info);
+        _tray.ShowBalloon($"Clicking every {_settings.IntervalMs} ms. Total clicks: {_engine.ClickCount:N0}");
     }
 
-    private void OnBalloonClosed(object? sender, EventArgs e)
+    // Safety ------------------------------------------------------------------------------------------------------
+
+    /// <summary>Stops clicking and lets go of anything held. Used when the app crashes and when the user leaves the session.</summary>
+    internal void EmergencyRelease()
     {
-        if (_tray is not null && !_settings.MinimizeToTray) _tray.Visible = false;
+        _engine.Stop();
+        _trigger.Cancel();
+        _holder.Release();
+    }
+
+    // Both of these arrive on another thread.
+    private void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
+    {
+        if (e.Reason is SessionSwitchReason.SessionLock or SessionSwitchReason.SessionLogoff
+            or SessionSwitchReason.ConsoleDisconnect or SessionSwitchReason.RemoteDisconnect)
+        {
+            Dispatcher.BeginInvoke(new Action(StopEverything));
+        }
+    }
+
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Suspend) Dispatcher.BeginInvoke(new Action(StopEverything));
+    }
+
+    private void StopEverything()
+    {
+        EmergencyRelease();
+        UpdateStatus();
+        UpdateHoldStatus();
+    }
+
+    private static bool IsAppElevated() =>
+        new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent())
+            .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+
+    // Saving ------------------------------------------------------------------------------------------------------
+    // Settings change on every keystroke and slider tick, and the keyboard hook shares this thread,
+    // so writes wait until the changes stop.
+
+    private void QueueSave()
+    {
+        _saveTimer.Stop();
+        _saveTimer.Start();
+    }
+
+    private void FlushSave()
+    {
+        _saveTimer.Stop();
+        _settings.Save();
+    }
+
+    // Number boxes ------------------------------------------------------------------------------------------------
+
+    private bool IsNumberBox(object source) => source is System.Windows.Controls.TextBox box && box != ProfileNameBox;
+
+    private void OnPreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        // The number boxes take digits only.
+        if (IsNumberBox(e.OriginalSource) && !e.Text.All(char.IsAsciiDigit)) e.Handled = true;
+    }
+
+    private void OnPaste(object sender, DataObjectPastingEventArgs e)
+    {
+        if (!IsNumberBox(e.OriginalSource)) return;
+
+        if (e.DataObject.GetData(System.Windows.DataFormats.UnicodeText) is not string text || !text.All(char.IsAsciiDigit))
+        {
+            e.CancelCommand();
+        }
+    }
+
+    private void OnNumberBoxLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (!IsNumberBox(e.OriginalSource)) return;
+
+        // A box can hold a value the app has clamped or ignored (an empty box, 5 ms in a 10 ms minimum).
+        // Show the value that is actually in use.
+        bool wasReady = _ready;
+        _ready = false;
+        IntervalBox.Text = Math.Clamp(_settings.IntervalMs, 10, MaxIntervalMs).ToString();
+        StopClicksBox.Text = _settings.StopAfterClicks.ToString();
+        StopMinutesBox.Text = _settings.StopAfterMinutes.ToString();
+        MaxHoldBox.Text = _settings.MaxHoldSeconds.ToString();
+        DoubleTapBox.Text = _settings.DoubleTapSeconds.ToString();
+        TripleTapBox.Text = _settings.TripleTapSeconds.ToString();
+        ExtendBox.Text = _settings.ExtendSeconds.ToString();
+        _ready = wasReady;
     }
 
     // Display -----------------------------------------------------------------------------------------------------
@@ -995,19 +930,17 @@ public partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        SystemEvents.SessionSwitch -= OnSessionSwitch;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+
         _statsTimer.Stop();
         _startButtonLock.Stop();
         _focusWatch.Stop();
         _repressTimer.Stop();
-        _pendingTimedStop.Stop();
         _toastTimer.Stop();
         _captureTimer.Stop();
-        if (_tray is not null)
-        {
-            // Hide the icon first so it does not linger in the tray after exit.
-            _tray.Visible = false;
-            _tray.Dispose();
-        }
+        FlushSave();
+        _tray.Dispose();
 
         _hook.KeyDown -= OnGlobalKeyDown;
         _hook.KeyUp -= OnGlobalKeyUp;

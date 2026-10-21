@@ -1,16 +1,34 @@
 name: Release
 
-# Push to main: build the app, then publish a GitHub release if the <Version> in
-# src/MouseClicker/MouseClicker.csproj has no tag yet. Each release has a portable exe and a setup installer.
+# Every push and pull request builds the app and runs the tests. A push to main then publishes a GitHub release
+# if the <Version> in src/MouseClicker/MouseClicker.csproj has no tag yet. Each release has a portable exe and a setup installer.
 on:
   push:
     branches: [main]
+  pull_request:
 
 permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test
+        run: dotnet test tests/MouseClicker.Tests -c Release --nologo
+
   release:
+    needs: test
+    if: github.event_name == 'push'
     runs-on: windows-latest
     defaults:
       run:
@@ -52,8 +70,9 @@ jobs:
         if: steps.ver.outputs.release == 'true'
         run: |
           New-Item -ItemType Directory -Force stage | Out-Null
-          choco install innosetup --no-progress -y
           $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          # The runner image may already have Inno Setup; install it only when it is missing.
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y }
           & $iscc "/DAppVersion=${{ steps.ver.outputs.version }}" "/DSourceDir=$PWD\publish\portable" "/O$PWD\stage" installer\MouseClicker.iss
           if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
 

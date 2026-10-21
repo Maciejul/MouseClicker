@@ -1,6 +1,7 @@
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace MouseClicker;
 
@@ -65,7 +66,20 @@ internal sealed class Profile
 
 internal sealed class AppSettings
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        // Names, not numbers, so reordering an enum later cannot change what a saved profile means. Old numbers still load.
+        Converters = { new JsonStringEnumConverter() },
+    };
+
+    /// <summary>Bumped when the file layout changes in a way old versions cannot read.</summary>
+    public const int CurrentSchemaVersion = 1;
+
+    private string? _path;
+
+    [AppLevel]
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 
     public int IntervalMs { get; set; } = 100;
     public int JitterPercent { get; set; } = 10;
@@ -149,7 +163,7 @@ internal sealed class AppSettings
     [AppLevel]
     public bool MinimizeToTray { get; set; }
 
-    private static string FilePath => Path.Combine(
+    internal static string DefaultPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "MouseClicker",
         "settings.json");
@@ -157,9 +171,8 @@ internal sealed class AppSettings
     /// <summary>A copy of the profile-level settings, with no profiles of its own.</summary>
     public AppSettings Snapshot()
     {
-        var copy = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(this, JsonOptions)) ?? new AppSettings();
-        copy.Profiles = new List<Profile>();
-        copy.ActiveProfile = null;
+        var copy = new AppSettings();
+        copy.ApplyProfile(this);
         return copy;
     }
 
@@ -173,33 +186,139 @@ internal sealed class AppSettings
         }
     }
 
-    public static AppSettings Load()
+    // Profiles ----------------------------------------------------------------------------------------------------
+    // Names are matched without regard to case everywhere ("Racing" and "racing" are the same profile),
+    // and the stored name keeps the spelling it was first saved with.
+
+    public Profile? FindProfile(string? name) =>
+        string.IsNullOrWhiteSpace(name)
+            ? null
+            : Profiles.FirstOrDefault(p => string.Equals(p.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The name a new profile gets when the user leaves the name box empty: the first "Profile N" not taken.</summary>
+    public string NewProfileName()
     {
-        try
+        for (int n = Profiles.Count + 1; ; n++)
         {
-            if (File.Exists(FilePath))
-            {
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
-            }
+            string name = $"Profile {n}";
+            if (FindProfile(name) is null) return name;
         }
-        catch (Exception)
+    }
+
+    /// <summary>Saves the current profile-level settings under a name, replacing a profile of the same name. Returns the stored name.</summary>
+    public string SaveProfile(string? requestedName)
+    {
+        string name = requestedName?.Trim() ?? "";
+        if (name.Length == 0) name = NewProfileName();
+
+        Profile? existing = FindProfile(name);
+        if (existing is null)
         {
-            // Corrupt or unreadable file: fall back to defaults.
+            Profiles.Add(new Profile { Name = name, Data = Snapshot() });
+        }
+        else
+        {
+            name = existing.Name;
+            existing.Data = Snapshot();
         }
 
-        return new AppSettings();
+        ActiveProfile = name;
+        return name;
+    }
+
+    public bool DeleteProfile(string? name)
+    {
+        Profile? profile = FindProfile(name);
+        if (profile is null) return false;
+
+        Profiles.Remove(profile);
+        if (string.Equals(ActiveProfile, profile.Name, StringComparison.OrdinalIgnoreCase)) ActiveProfile = null;
+        return true;
+    }
+
+    /// <summary>The profile after the active one, wrapping around. Null when there are no profiles.</summary>
+    public Profile? NextProfile()
+    {
+        if (Profiles.Count == 0) return null;
+
+        int index = Profiles.FindIndex(p => string.Equals(p.Name, ActiveProfile, StringComparison.OrdinalIgnoreCase));
+        return Profiles[(index + 1) % Profiles.Count];
+    }
+
+    /// <summary>Repairs a loaded file: blank names get a name, repeated names are dropped, and the active name must exist.</summary>
+    private void Normalize()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var kept = new List<Profile>();
+        foreach (Profile profile in Profiles)
+        {
+            profile.Name = profile.Name?.Trim() ?? "";
+            profile.Data ??= new AppSettings();
+            if (profile.Name.Length == 0)
+            {
+                int n = kept.Count + 1;
+                while (seen.Contains($"Profile {n}")) n++;
+                profile.Name = $"Profile {n}";
+            }
+
+            if (seen.Add(profile.Name)) kept.Add(profile);
+        }
+
+        Profiles = kept;
+        ActiveProfile = FindProfile(ActiveProfile)?.Name;
+    }
+
+    // Storage -----------------------------------------------------------------------------------------------------
+
+    public static AppSettings Load(string? path = null)
+    {
+        path ??= DefaultPath;
+
+        AppSettings loaded;
+        try
+        {
+            loaded = File.Exists(path)
+                ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), JsonOptions) ?? new AppSettings()
+                : new AppSettings();
+        }
+        catch (Exception ex)
+        {
+            // Keep the unreadable file instead of letting the next save overwrite it, then start from defaults.
+            Log.Error($"Could not read {path}; keeping a copy as .bak", ex);
+            try
+            {
+                File.Move(path, path + ".bak", overwrite: true);
+            }
+            catch (Exception)
+            {
+                // If even that fails there is nothing more to do.
+            }
+
+            loaded = new AppSettings();
+        }
+
+        loaded._path = path;
+        loaded.Normalize();
+        return loaded;
     }
 
     public void Save()
     {
+        string path = _path ?? DefaultPath;
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, JsonOptions));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+            // Write a temp file first and swap it in, so a crash mid-write cannot leave a half-written settings file.
+            string temp = path + ".tmp";
+            File.WriteAllText(temp, JsonSerializer.Serialize(this, JsonOptions));
+            if (File.Exists(path)) File.Replace(temp, path, null);
+            else File.Move(temp, path);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Settings are a convenience; failing to save should not stop the clicker.
+            Log.Error($"Could not save {path}", ex);
         }
     }
 }

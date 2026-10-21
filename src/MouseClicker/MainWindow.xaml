@@ -9,6 +9,9 @@
         FontFamily="Segoe UI"
         FontSize="13"
         PreviewKeyDown="OnPreviewKeyDown"
+        PreviewTextInput="OnPreviewTextInput"
+        DataObject.Pasting="OnPaste"
+        TextBox.LostFocus="OnNumberBoxLostFocus"
         StateChanged="OnStateChanged"
         Closed="OnClosed">
     <Grid Margin="16">
