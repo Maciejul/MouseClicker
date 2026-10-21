@@ -250,7 +250,11 @@ public partial class MainWindow : Window
         if (HoldTargetCombo.SelectedIndex >= 0) _settings.HoldTargetKind = (HoldTarget)HoldTargetCombo.SelectedIndex;
         if (HeldMouseCombo.SelectedIndex >= 0) _settings.HeldMouseButton = (ClickButton)HeldMouseCombo.SelectedIndex;
 
+        // Show an option's details only while the option is in use.
         HeldMouseCombo.Visibility = _settings.HoldTargetKind == HoldTarget.Key ? Visibility.Collapsed : Visibility.Visible;
+        MaxHoldPanel.Visibility = _settings.SingleTap == SingleTapBehavior.WhileDown ? Visibility.Visible : Visibility.Collapsed;
+        TimedPanel.Visibility = _settings.HoldTimedEnabled ? Visibility.Visible : Visibility.Collapsed;
+        ExtendRow.Visibility = _settings.ExtendOnTap ? Visibility.Visible : Visibility.Collapsed;
         ApplyHoldConfig();
         _settings.Save();
         UpdateHoldStatus();

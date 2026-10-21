@@ -185,7 +185,7 @@
             </Setter>
         </Style>
 
-        <!-- Master on/off switch: grey with OFF, green with ON. The state is written out too, not only colored. -->
+        <!-- Master on/off switch: grey with DISABLED, green with ENABLED. The state is written out too, not only colored. -->
         <Style x:Key="SwitchButton" TargetType="ToggleButton">
             <Setter Property="Height" Value="40" />
             <Setter Property="Cursor" Value="Hand" />
@@ -207,7 +207,7 @@
                                            HorizontalAlignment="Left"
                                            Foreground="{StaticResource TextBrush}" />
                                 <TextBlock x:Name="State"
-                                           Text="OFF"
+                                           Text="DISABLED"
                                            FontWeight="Bold"
                                            VerticalAlignment="Center"
                                            HorizontalAlignment="Right"
@@ -223,7 +223,7 @@
                                 <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource SuccessBrush}" />
                                 <Setter TargetName="Label" Property="Foreground" Value="White" />
                                 <Setter TargetName="State" Property="Foreground" Value="White" />
-                                <Setter TargetName="State" Property="Text" Value="ON" />
+                                <Setter TargetName="State" Property="Text" Value="ENABLED" />
                             </Trigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>

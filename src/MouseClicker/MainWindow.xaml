@@ -163,47 +163,54 @@
                             <RadioButton x:Name="TapToggleRadio" GroupName="Tap" Content="Toggle on / off" Margin="0,0,0,4" Checked="OnHoldOptionsChanged" />
                             <RadioButton x:Name="TapWhileRadio" GroupName="Tap" Content="Hold while the key is pressed" Margin="0,0,0,4" Checked="OnHoldOptionsChanged" />
                             <RadioButton x:Name="TapNoneRadio" GroupName="Tap" Content="Do nothing" Margin="0,0,0,8" Checked="OnHoldOptionsChanged" />
-                            <Grid Margin="0,0,0,4">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Max while pressed (s)" VerticalAlignment="Center" />
-                                <TextBox x:Name="MaxHoldBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
-                            </Grid>
-                            <TextBlock Style="{StaticResource HintText}" Text="0 means no limit." Margin="0,0,0,14" />
+                            <!-- Only shown when a single tap holds while the key is pressed -->
+                            <StackPanel x:Name="MaxHoldPanel">
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Max while pressed (s)" VerticalAlignment="Center" />
+                                    <TextBox x:Name="MaxHoldBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
+                                </Grid>
+                                <TextBlock Style="{StaticResource HintText}" Text="0 means no limit." />
+                            </StackPanel>
 
-                            <TextBlock Style="{StaticResource SectionLabel}" Text="TIMED HOLD" />
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="TIMED HOLD" Margin="0,16,0,8" />
                             <CheckBox x:Name="HoldTimedCheck" Checked="OnHoldOptionsChanged" Unchecked="OnHoldOptionsChanged" Margin="0,0,0,8">
                                 <TextBlock Text="Multiple taps hold for a set time" TextWrapping="Wrap" />
                             </CheckBox>
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Double tap (s)" VerticalAlignment="Center" />
-                                <TextBox x:Name="DoubleTapBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
-                            </Grid>
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Triple tap (s)" VerticalAlignment="Center" />
-                                <TextBox x:Name="TripleTapBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
-                            </Grid>
-                            <CheckBox x:Name="ExtendCheck" Checked="OnHoldOptionsChanged" Unchecked="OnHoldOptionsChanged" Margin="0,0,0,6">
-                                <TextBlock Text="Tapping during a timed hold adds time" TextWrapping="Wrap" />
-                            </CheckBox>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Time added (s)" VerticalAlignment="Center" />
-                                <TextBox x:Name="ExtendBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
-                            </Grid>
+                            <!-- Only shown when timed hold is ticked -->
+                            <StackPanel x:Name="TimedPanel">
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Double tap (s)" VerticalAlignment="Center" />
+                                    <TextBox x:Name="DoubleTapBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Triple tap (s)" VerticalAlignment="Center" />
+                                    <TextBox x:Name="TripleTapBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
+                                </Grid>
+                                <CheckBox x:Name="ExtendCheck" Checked="OnHoldOptionsChanged" Unchecked="OnHoldOptionsChanged" Margin="0,0,0,6">
+                                    <TextBlock Text="Tapping during a timed hold adds time" TextWrapping="Wrap" />
+                                </CheckBox>
+                                <!-- Only shown when adding time is ticked -->
+                                <Grid x:Name="ExtendRow">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Time added (s)" VerticalAlignment="Center" />
+                                    <TextBox x:Name="ExtendBox" Grid.Column="1" Width="56" TextAlignment="Right" TextChanged="OnHoldNumberChanged" />
+                                </Grid>
+                            </StackPanel>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
