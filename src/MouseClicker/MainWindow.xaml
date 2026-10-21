@@ -220,23 +220,19 @@
                                 <ComboBoxItem Content="Mouse button" />
                                 <ComboBoxItem Content="Key and mouse button" />
                             </ComboBox>
-                            <!-- The mouse button list sits here for "Mouse button", and moves beside the key button for "Key and mouse button" -->
-                            <Border x:Name="MouseSlotTop">
-                                <ComboBox x:Name="HeldMouseCombo" SelectionChanged="OnHoldOptionsChanged">
-                                    <ComboBoxItem Content="Left button" />
-                                    <ComboBoxItem Content="Right button" />
-                                    <ComboBoxItem Content="Middle button" />
-                                </ComboBox>
-                            </Border>
 
                             <TextBlock Style="{StaticResource SectionLabel}" Text="TRIGGER KEY" Margin="0,16,0,6" />
                             <Button x:Name="HoldTriggerButton" Style="{StaticResource KeyButton}" Click="OnHoldTriggerButtonClick" />
 
                             <TextBlock x:Name="HeldKeyLabel" Style="{StaticResource SectionLabel}" Text="KEY TO HOLD" Margin="0,16,0,6" />
-                            <StackPanel x:Name="HeldKeyRow" Orientation="Horizontal">
-                                <Button x:Name="HeldKeyButton" Style="{StaticResource KeyButton}" Click="OnHeldKeyButtonClick" />
-                                <Border x:Name="MouseSlotKey" Margin="8,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
+                            <Button x:Name="HeldKeyButton" Style="{StaticResource KeyButton}" Click="OnHeldKeyButtonClick" />
+
+                            <TextBlock x:Name="HeldMouseLabel" Style="{StaticResource SectionLabel}" Text="MOUSE KEY TO HOLD" Margin="0,16,0,6" />
+                            <ComboBox x:Name="HeldMouseCombo" Width="126" HorizontalAlignment="Left" SelectionChanged="OnHoldOptionsChanged">
+                                <ComboBoxItem Content="Left button" />
+                                <ComboBoxItem Content="Right button" />
+                                <ComboBoxItem Content="Middle button" />
+                            </ComboBox>
                             <TextBlock Style="{StaticResource HintText}" Text="Click a key button to change it. Esc cancels." Margin="0,6,0,0" />
                         </StackPanel>
                     </Grid>
