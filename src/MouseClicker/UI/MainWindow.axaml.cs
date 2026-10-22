@@ -240,7 +240,7 @@ internal sealed partial class MainWindow : Window
         IntervalBox.Text = Math.Clamp(_settings.IntervalMs, 10, MaxIntervalMs).ToString();
         IntervalSlider.Value = Math.Clamp(_settings.IntervalMs, 10, 500);
         JitterSlider.Value = _settings.JitterPercent;
-        JitterCard.Description = $"Random jitter: {_settings.JitterPercent}%";
+        JitterValue.Text = $"Random jitter: {_settings.JitterPercent}%";
         NotifySwitch.IsChecked = _settings.NotifyOnStart;
         ToggleRadio.IsChecked = _settings.Mode == TriggerMode.Toggle;
         HoldRadio.IsChecked = _settings.Mode == TriggerMode.Hold;
@@ -441,7 +441,7 @@ internal sealed partial class MainWindow : Window
     private void OnJitterChanged(object? sender, RangeBaseValueChangedEventArgs e)
     {
         if (!_ready) return;
-        JitterCard.Description = $"Random jitter: {(int)e.NewValue}%";
+        JitterValue.Text = $"Random jitter: {(int)e.NewValue}%";
         PushSettings();
     }
 

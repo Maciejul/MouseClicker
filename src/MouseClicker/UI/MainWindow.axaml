@@ -49,15 +49,21 @@
             </Border>
 
             <local:SectionHeader Title="Timing" Subtitle="How fast and how regular" Margin="0,12,0,0" />
-            <local:SettingCard Title="Interval" Description="Milliseconds between clicks, 10 to 1000">
-              <StackPanel Orientation="Horizontal" Spacing="12">
-                <Slider Name="IntervalSlider" Width="190" Minimum="10" Maximum="500" TickFrequency="10" VerticalAlignment="Center" />
-                <TextBox Name="IntervalBox" Width="80" TextAlignment="Right" />
+            <Border Classes="card" Padding="16,12">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Interval (ms, min 10)" FontSize="14" FontWeight="SemiBold" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <Slider Name="IntervalSlider" Minimum="10" Maximum="500" TickFrequency="10" VerticalAlignment="Center" Margin="0,0,14,0" />
+                  <TextBox Name="IntervalBox" Grid.Column="1" Width="84" TextAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
               </StackPanel>
-            </local:SettingCard>
-            <local:SettingCard Name="JitterCard" Title="Random jitter" Description="Random jitter: 10%">
-              <Slider Name="JitterSlider" Width="190" Minimum="0" Maximum="50" TickFrequency="5" IsSnapToTickEnabled="True" />
-            </local:SettingCard>
+            </Border>
+            <Border Classes="card" Padding="16,12">
+              <StackPanel Spacing="6">
+                <TextBlock Name="JitterValue" Text="Random jitter: 10%" FontSize="14" FontWeight="SemiBold" />
+                <Slider Name="JitterSlider" Minimum="0" Maximum="50" TickFrequency="5" IsSnapToTickEnabled="True" />
+              </StackPanel>
+            </Border>
 
             <local:SectionHeader Title="Trigger" Subtitle="What starts the clicking" Margin="0,12,0,0" />
             <local:SettingCard Title="Trigger mode" Description="Toggle: press the hotkey to start and again to stop. Hold: click only while it is held">
