@@ -54,7 +54,9 @@ public partial class MainWindow : Window
     {
         _settings = AppSettings.Load();
         _trigger = new HoldTriggerController(_holder, () => _settings, HeldDescription);
+        ThemeService.Apply(_settings.DarkMode);
         InitializeComponent();
+        SourceInitialized += (_, _) => ThemeService.ApplyTitleBar(this);
 
         Title = $"Mouse Clicker v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3)}";
 
@@ -165,6 +167,7 @@ public partial class MainWindow : Window
         HoldTargetCombo.SelectedIndex = (int)_settings.HoldTargetKind;
         HeldMouseCombo.SelectedIndex = (int)_settings.HeldMouseButton;
 
+        DarkModeCheck.IsChecked = _settings.DarkMode;
         StartWithWindowsCheck.IsChecked = _settings.StartWithWindows;
         StartMinimizedCheck.IsChecked = _settings.StartMinimized;
         MinimizeToTrayCheck.IsChecked = _settings.MinimizeToTray;
@@ -692,6 +695,19 @@ public partial class MainWindow : Window
     }
 
     // Startup and tray --------------------------------------------------------------------------------------------
+
+    private void OnDarkModeChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+
+        _settings.DarkMode = DarkModeCheck.IsChecked == true;
+        QueueSave();
+
+        ThemeService.Apply(_settings.DarkMode);
+        ThemeService.ApplyTitleBar(this);
+        _tray.ApplyTheme();
+        UpdateStatus(); // the activity pill's dot and text took brushes by name
+    }
 
     private void OnStartupChanged(object sender, RoutedEventArgs e)
     {

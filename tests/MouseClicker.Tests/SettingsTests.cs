@@ -91,7 +91,7 @@ public sealed class SettingsTests : IDisposable
         {
             nameof(AppSettings.SchemaVersion), nameof(AppSettings.Profiles), nameof(AppSettings.ActiveProfile),
             nameof(AppSettings.ProfileNextVk), nameof(AppSettings.StartWithWindows), nameof(AppSettings.StartMinimized),
-            nameof(AppSettings.MinimizeToTray),
+            nameof(AppSettings.MinimizeToTray), nameof(AppSettings.DarkMode),
         };
 
         string[] actual = typeof(AppSettings).GetProperties()

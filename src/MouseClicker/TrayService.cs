@@ -20,6 +20,12 @@ internal sealed class TrayService : IDisposable
         else if (_icon is not null) _icon.Visible = false;
     }
 
+    /// <summary>Restyles the menu after the palette changed.</summary>
+    public void ApplyTheme()
+    {
+        if (_icon?.ContextMenuStrip is ContextMenuStrip menu) ThemeService.StyleMenu(menu);
+    }
+
     public void ShowBalloon(string text)
     {
         NotifyIcon icon = Ensure();
@@ -54,6 +60,7 @@ internal sealed class TrayService : IDisposable
         menu.Items.Add("Open", null, (_, _) => OpenRequested?.Invoke());
         menu.Items.Add("Exit", null, (_, _) => ExitRequested?.Invoke());
 
+        ThemeService.StyleMenu(menu);
         _icon = new NotifyIcon { Icon = icon, Text = "Mouse Clicker", ContextMenuStrip = menu };
         _icon.DoubleClick += (_, _) => OpenRequested?.Invoke();
         return _icon;

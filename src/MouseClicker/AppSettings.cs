@@ -154,6 +154,10 @@ internal sealed class AppSettings
     [AppLevel]
     public int ProfileNextVk { get; set; } = 0x77;
 
+    /// <summary>Dark colour scheme for the window and tray menu. Applies and saves at once.</summary>
+    [AppLevel]
+    public bool DarkMode { get; set; }
+
     [AppLevel]
     public bool StartWithWindows { get; set; }
 

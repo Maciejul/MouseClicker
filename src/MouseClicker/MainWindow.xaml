@@ -5,7 +5,7 @@
         Width="600"
         SizeToContent="Height"
         ResizeMode="CanMinimize"
-        Background="{StaticResource WindowBg}"
+        Background="{DynamicResource WindowBg}"
         FontFamily="Segoe UI"
         FontSize="13"
         PreviewKeyDown="OnPreviewKeyDown"
@@ -90,7 +90,7 @@
                                        Text="0"
                                        FontSize="40"
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource AccentBrush}"
+                                       Foreground="{DynamicResource AccentTextBrush}"
                                        Margin="0,0,0,18" />
 
                             <TextBlock Style="{StaticResource SectionLabel}" Text="LAST CLICK" />
@@ -98,7 +98,7 @@
                                        Text="-"
                                        FontFamily="Consolas"
                                        FontSize="18"
-                                       Foreground="{StaticResource TextBrush}" />
+                                       Foreground="{DynamicResource TextBrush}" />
                         </StackPanel>
                     </Border>
 
@@ -242,9 +242,9 @@
 
                     <Border Margin="0,18,0,0"
                             Padding="12,10"
-                            Background="{StaticResource ControlHoverBrush}"
+                            Background="{DynamicResource ControlHoverBrush}"
                             CornerRadius="6">
-                        <TextBlock x:Name="HoldStatusText" Text="Not holding" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                        <TextBlock x:Name="HoldStatusText" Text="Not holding" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}" />
                     </Border>
                 </StackPanel>
             </Border>
@@ -272,6 +272,11 @@
 
                     <Separator Margin="0,16,0,12" />
 
+                    <TextBlock Style="{StaticResource SectionLabel}" Text="APPEARANCE" />
+                    <CheckBox x:Name="DarkModeCheck" Content="Dark mode" Checked="OnDarkModeChanged" Unchecked="OnDarkModeChanged" />
+
+                    <Separator Margin="0,16,0,12" />
+
                     <TextBlock Style="{StaticResource SectionLabel}" Text="STARTUP" />
                     <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows" Checked="OnStartupChanged" Unchecked="OnStartupChanged" Margin="0,0,0,4" />
                     <CheckBox x:Name="StartMinimizedCheck" Content="Start minimized" Checked="OnStartupChanged" Unchecked="OnStartupChanged" Margin="0,0,0,4" />
@@ -288,7 +293,7 @@
                 VerticalAlignment="Top"
                 Margin="0,6,0,0"
                 Padding="10,5"
-                Background="{StaticResource ControlHoverBrush}"
+                Background="{DynamicResource ControlHoverBrush}"
                 CornerRadius="12">
             <StackPanel Orientation="Horizontal">
                 <Ellipse x:Name="ActivityDot"
@@ -296,12 +301,12 @@
                          Height="9"
                          Margin="0,0,8,0"
                          VerticalAlignment="Center"
-                         Fill="{StaticResource MutedBrush}" />
+                         Fill="{DynamicResource MutedBrush}" />
                 <TextBlock x:Name="ActivityText"
                            Text="Idle"
                            FontSize="12"
                            FontWeight="SemiBold"
-                           Foreground="{StaticResource MutedBrush}"
+                           Foreground="{DynamicResource MutedBrush}"
                            VerticalAlignment="Center" />
             </StackPanel>
         </Border>
@@ -314,7 +319,7 @@
                 VerticalAlignment="Top"
                 Margin="0,4,0,0"
                 Padding="14,7"
-                Background="{StaticResource AccentBrush}"
+                Background="{DynamicResource AccentBrush}"
                 CornerRadius="14">
             <TextBlock x:Name="ToastText" Foreground="White" FontSize="12" FontWeight="SemiBold" />
         </Border>
