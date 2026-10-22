@@ -1,0 +1,236 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:MouseClicker"
+        x:Class="MouseClicker.MainWindow"
+        Title="Mouse Clicker"
+        Icon="avares://MouseClicker/Assets/app.ico"
+        Width="720" Height="760" MinWidth="620" MinHeight="520"
+        WindowStartupLocation="CenterScreen">
+  <Grid>
+    <DockPanel>
+
+      <!-- Header: logo, title, version, live status. -->
+      <Border DockPanel.Dock="Top" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Height="72">
+        <Grid Margin="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <Image Name="HeaderIcon" Source="avares://MouseClicker/Assets/app.png" Width="40" Height="40" />
+            <StackPanel VerticalAlignment="Center" Spacing="2">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Mouse Clicker" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Name="VersionLabel" Classes="muted" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,3" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Ellipse Name="ActivityDot" Width="9" Height="9" VerticalAlignment="Center" Fill="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                <TextBlock Name="ActivityText" Classes="muted" Text="Idle" />
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <TabControl Name="MainTabs" Classes="main">
+
+        <!-- ======================================================== Clicker -->
+        <TabItem Header="Clicker">
+          <ScrollViewer><StackPanel Margin="22,16,22,18" Spacing="8">
+            <local:SectionHeader Title="Clicker" Subtitle="Start and stop with the hotkey or the button" />
+            <Border Classes="card" Padding="16,12">
+              <Grid ColumnDefinitions="*,*,Auto">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Clicks" Classes="muted" />
+                  <TextBlock Name="ClickCountText" Text="0" FontSize="34" FontWeight="SemiBold" Foreground="{DynamicResource AccentText}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                  <TextBlock Text="Last click" Classes="muted" />
+                  <TextBlock Name="LastClickText" Text="-" FontFamily="Cascadia Mono, Consolas" FontSize="18" />
+                </StackPanel>
+                <Button Name="StartStopButton" Grid.Column="2" Classes="accent" VerticalAlignment="Center" MinWidth="120" Height="40" />
+              </Grid>
+            </Border>
+
+            <local:SectionHeader Title="Timing" Subtitle="How fast and how regular" Margin="0,12,0,0" />
+            <local:SettingCard Title="Interval" Description="Milliseconds between clicks, 10 to 1000">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Slider Name="IntervalSlider" Width="190" Minimum="10" Maximum="500" TickFrequency="10" VerticalAlignment="Center" />
+                <TextBox Name="IntervalBox" Width="80" TextAlignment="Right" />
+              </StackPanel>
+            </local:SettingCard>
+            <local:SettingCard Name="JitterCard" Title="Random jitter" Description="Random jitter: 10%">
+              <Slider Name="JitterSlider" Width="190" Minimum="0" Maximum="50" TickFrequency="5" IsSnapToTickEnabled="True" />
+            </local:SettingCard>
+
+            <local:SectionHeader Title="Trigger" Subtitle="What starts the clicking" Margin="0,12,0,0" />
+            <local:SettingCard Title="Trigger mode" Description="Toggle: press the hotkey to start and again to stop. Hold: click only while it is held">
+              <StackPanel Orientation="Horizontal" Spacing="16">
+                <RadioButton Name="ToggleRadio" GroupName="Mode" Content="Toggle" />
+                <RadioButton Name="HoldRadio" GroupName="Mode" Content="Hold" />
+              </StackPanel>
+            </local:SettingCard>
+            <local:SettingCard Title="Hotkey" Description="Click the button, then press a key. Esc cancels">
+              <Button Name="HotkeyButton" Classes="plain key" />
+            </local:SettingCard>
+            <local:SettingCard Title="Notify when clicking starts" Description="Shows a short notice at the top of the screen">
+              <ToggleSwitch Name="NotifySwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
+            </local:SettingCard>
+
+            <local:SectionHeader Title="Click" Subtitle="What is clicked, and where" Margin="0,12,0,0" />
+            <local:SettingCard Title="Mouse button" Description="Which button is pressed">
+              <ComboBox Name="ClickButtonCombo" Width="160">
+                <ComboBoxItem Content="Left button" />
+                <ComboBoxItem Content="Right button" />
+                <ComboBoxItem Content="Middle button" />
+              </ComboBox>
+            </local:SettingCard>
+            <local:SettingCard Title="Double click" Description="Send two clicks each time">
+              <ToggleSwitch Name="DoubleClickSwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
+            </local:SettingCard>
+            <local:SettingCard Name="TargetCard" Title="Click at" Description="Clicks wherever the cursor is.">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ComboBox Name="ClickTargetCombo" Width="170">
+                  <ComboBoxItem Content="Cursor position" />
+                  <ComboBoxItem Content="Fixed screen point" />
+                  <ComboBoxItem Content="Spot in a window" />
+                </ComboBox>
+                <Button Name="CaptureButton" Classes="plain">
+                  <StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Data="{StaticResource IconTarget}" /><TextBlock Name="CaptureText" Text="Capture (3 s)" /></StackPanel>
+                </Button>
+              </StackPanel>
+            </local:SettingCard>
+
+            <local:SectionHeader Title="Auto-stop" Subtitle="0 means no limit" Margin="0,12,0,0" />
+            <local:SettingCard Title="After clicks" Description="Stop once this many clicks were sent">
+              <TextBox Name="StopClicksBox" Width="110" TextAlignment="Right" />
+            </local:SettingCard>
+            <local:SettingCard Title="After minutes" Description="Stop after clicking for this long">
+              <TextBox Name="StopMinutesBox" Width="110" TextAlignment="Right" />
+            </local:SettingCard>
+          </StackPanel></ScrollViewer>
+        </TabItem>
+
+        <!-- ======================================================== Hold -->
+        <TabItem Header="Hold">
+          <ScrollViewer><StackPanel Margin="22,16,22,18" Spacing="8">
+            <local:SectionHeader Title="Hold" Subtitle="Press and keep a key or mouse button down for you" />
+            <Border Classes="card" Padding="16,12">
+              <TextBlock Name="HoldStatusText" Text="Not holding" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentText}" />
+            </Border>
+            <local:SettingCard Title="Hold trigger" Description="Turns the hold feature on. The trigger key starts and stops it">
+              <ToggleSwitch Name="HoldEnabledSwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
+            </local:SettingCard>
+            <local:SettingCard Title="Stop when the held key is used" Description="Stop the hold when you press or release the held key yourself">
+              <ToggleSwitch Name="StopOnHeldKeySwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
+            </local:SettingCard>
+
+            <local:SectionHeader Title="What to hold" Subtitle="And which keys drive it" Margin="0,12,0,0" />
+            <local:SettingCard Title="Hold" Description="A keyboard key, a mouse button or both">
+              <ComboBox Name="HoldTargetCombo" Width="190">
+                <ComboBoxItem Content="Keyboard key" />
+                <ComboBoxItem Content="Mouse button" />
+                <ComboBoxItem Content="Key and mouse button" />
+              </ComboBox>
+            </local:SettingCard>
+            <local:SettingCard Title="Trigger key" Description="Click the button, then press a key. Esc cancels">
+              <Button Name="HoldTriggerButton" Classes="plain key" />
+            </local:SettingCard>
+            <local:SettingCard Name="HeldKeyCard" Title="Key to hold" Description="Click the button, then press a key. Esc cancels">
+              <Button Name="HeldKeyButton" Classes="plain key" />
+            </local:SettingCard>
+            <local:SettingCard Name="HeldMouseCard" Title="Mouse button to hold" Description="Which mouse button is held down">
+              <ComboBox Name="HeldMouseCombo" Width="160">
+                <ComboBoxItem Content="Left button" />
+                <ComboBoxItem Content="Right button" />
+                <ComboBoxItem Content="Middle button" />
+              </ComboBox>
+            </local:SettingCard>
+
+            <local:SectionHeader Title="Single tap" Subtitle="What one press of the trigger key does" Margin="0,12,0,0" />
+            <Border Classes="card" Padding="16,12">
+              <StackPanel Spacing="4">
+                <RadioButton Name="TapToggleRadio" GroupName="Tap" Content="Toggle on / off" />
+                <RadioButton Name="TapWhileRadio" GroupName="Tap" Content="Hold while the key is pressed" />
+                <RadioButton Name="TapNoneRadio" GroupName="Tap" Content="Do nothing" />
+              </StackPanel>
+            </Border>
+            <local:SettingCard Name="MaxHoldCard" Title="Max while pressed (s)" Description="Longest hold for a single tap. 0 means no limit">
+              <TextBox Name="MaxHoldBox" Width="90" TextAlignment="Right" />
+            </local:SettingCard>
+
+            <local:SectionHeader Title="Timed hold" Subtitle="Multiple taps hold for a set time" Margin="0,12,0,0" />
+            <local:SettingCard Title="Timed hold" Description="Double and triple taps hold for a set number of seconds">
+              <ToggleSwitch Name="HoldTimedSwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
+            </local:SettingCard>
+            <StackPanel Name="TimedPanel" Spacing="8">
+              <local:SettingCard Title="Double tap (s)" Description="Seconds held after a double tap">
+                <TextBox Name="DoubleTapBox" Width="90" TextAlignment="Right" />
+              </local:SettingCard>
+              <local:SettingCard Title="Triple tap (s)" Description="Seconds held after a triple tap">
+                <TextBox Name="TripleTapBox" Width="90" TextAlignment="Right" />
+              </local:SettingCard>
+              <local:SettingCard Title="Tapping adds time" Description="Tapping during a timed hold adds time to it">
+                <ToggleSwitch Name="ExtendSwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
+              </local:SettingCard>
+              <local:SettingCard Name="ExtendRow" Title="Time added (s)" Description="Seconds added by each extra tap">
+                <TextBox Name="ExtendBox" Width="90" TextAlignment="Right" />
+              </local:SettingCard>
+            </StackPanel>
+          </StackPanel></ScrollViewer>
+        </TabItem>
+
+        <!-- ======================================================== Settings -->
+        <TabItem Header="Settings">
+          <TabControl Name="SettingsTabs" Classes="sub">
+
+            <TabItem Header="General">
+              <ScrollViewer><StackPanel Margin="22,16,22,18" Spacing="8">
+                <local:SectionHeader Title="Startup" Subtitle="How the app starts" />
+                <local:SettingCard Title="Start with Windows" Description="Launch automatically when you sign in to Windows">
+                  <ToggleSwitch Name="StartWithWindowsSwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
+                </local:SettingCard>
+                <local:SettingCard Title="Start minimized" Description="Only applies when it starts with Windows. It goes to the tray when that is on">
+                  <ToggleSwitch Name="StartMinimizedSwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
+                </local:SettingCard>
+                <local:SettingCard Title="Minimize to the tray" Description="Minimizing hides the window; use the tray icon to bring it back">
+                  <ToggleSwitch Name="MinimizeToTraySwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
+                </local:SettingCard>
+
+                <local:SectionHeader Title="Appearance" Subtitle="How the window looks" Margin="0,12,0,0" />
+                <local:SettingCard Title="Dark mode" Description="Use a dark colour scheme for the window and the tray menu. Applies at once">
+                  <ToggleSwitch Name="DarkModeSwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
+                </local:SettingCard>
+              </StackPanel></ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Profiles">
+              <ScrollViewer><StackPanel Margin="22,16,22,18" Spacing="8">
+                <local:SectionHeader Title="Profiles" Subtitle="A profile stores the clicker and hold settings" />
+                <local:SettingCard Title="Active profile" Description="Pick a profile to apply it">
+                  <ComboBox Name="ProfileCombo" Width="220" />
+                </local:SettingCard>
+                <local:SettingCard Title="Save or delete" Description="Save under a new name to add a profile, or under an existing name to replace it">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox Name="ProfileNameBox" Width="150" />
+                    <Button Name="ProfileSaveButton" Classes="accent">
+                      <StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Data="{StaticResource IconSave}" /><TextBlock Text="Save" /></StackPanel>
+                    </Button>
+                    <Button Name="ProfileDeleteButton" Classes="danger">
+                      <StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Data="{StaticResource IconClose}" /><TextBlock Text="Delete" /></StackPanel>
+                    </Button>
+                  </StackPanel>
+                </local:SettingCard>
+                <local:SettingCard Title="Next profile key" Description="Cycles to the next saved profile. Click the button, then press a key">
+                  <Button Name="ProfileKeyButton" Classes="plain key" />
+                </local:SettingCard>
+              </StackPanel></ScrollViewer>
+            </TabItem>
+          </TabControl>
+        </TabItem>
+      </TabControl>
+    </DockPanel>
+
+    <!-- Short messages appear here, at the top of the window. -->
+    <Border Name="ToastBorder" IsVisible="False" ZIndex="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,0,0"
+            Padding="16,8" Background="#0067C0" CornerRadius="16">
+      <TextBlock Name="ToastText" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+    </Border>
+  </Grid>
+</Window>

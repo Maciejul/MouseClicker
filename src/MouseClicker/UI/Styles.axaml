@@ -1,0 +1,142 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:MouseClicker">
+
+  <Styles.Resources>
+    <!-- Button icons are vector geometries (24x24 grid), drawn with the button's own foreground, never text glyphs. -->
+    <StreamGeometry x:Key="IconPlus">M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z</StreamGeometry>
+    <StreamGeometry x:Key="IconClose">M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z</StreamGeometry>
+    <StreamGeometry x:Key="IconUp">M12 7.5 4.5 15 6 16.5l6-6 6 6 1.5-1.5z</StreamGeometry>
+    <StreamGeometry x:Key="IconDown">M12 16.5 4.5 9 6 7.5l6 6 6-6L19.5 9z</StreamGeometry>
+    <StreamGeometry x:Key="IconPlay">M8 5v14l11-7z</StreamGeometry>
+    <StreamGeometry x:Key="IconStop">M6 6h12v12H6z</StreamGeometry>
+    <StreamGeometry x:Key="IconTarget">M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 3h-2.07A7 7 0 0 0 13 5.07V3h-2v2.07A7 7 0 0 0 5.07 11H3v2h2.07A7 7 0 0 0 11 18.93V21h2v-2.07A7 7 0 0 0 18.93 13H21z</StreamGeometry>
+    <StreamGeometry x:Key="IconSave">M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10z</StreamGeometry>
+    <StreamGeometry x:Key="IconRefresh">M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z</StreamGeometry>
+
+    <!-- Reusable controls are control themes, like Fluent's own. -->
+    <ControlTheme x:Key="{x:Type local:SectionHeader}" TargetType="local:SectionHeader">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <StackPanel Spacing="2" Margin="0,0,0,2">
+            <TextBlock Text="{TemplateBinding Title}" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+            <TextBlock Text="{TemplateBinding Subtitle}" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" TextWrapping="Wrap" />
+          </StackPanel>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+
+    <!-- Setting card: title, muted description and the control on the right. -->
+    <ControlTheme x:Key="{x:Type local:SettingCard}" TargetType="local:SettingCard">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="16,12" MinHeight="62">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel VerticalAlignment="Center" Spacing="2">
+                <TextBlock Text="{TemplateBinding Title}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                <TextBlock Name="Desc" Text="{TemplateBinding Description}" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                           TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" />
+              </StackPanel>
+              <ContentPresenter Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" Content="{TemplateBinding Content}" />
+            </Grid>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^[Tone=good] /template/ TextBlock#Desc"><Setter Property="Foreground" Value="{DynamicResource Good}" /></Style>
+      <Style Selector="^[Tone=warn] /template/ TextBlock#Desc"><Setter Property="Foreground" Value="{DynamicResource Warn}" /></Style>
+    </ControlTheme>
+  </Styles.Resources>
+
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource Page}" />
+    <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+  </Style>
+
+  <!-- Colour tones for text that reports a state. -->
+  <Style Selector="TextBlock.muted"><Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" /></Style>
+  <Style Selector="TextBlock.good"><Setter Property="Foreground" Value="{DynamicResource Good}" /></Style>
+  <Style Selector="TextBlock.warn"><Setter Property="Foreground" Value="{DynamicResource Warn}" /></Style>
+  <Style Selector="TextBlock.bad"><Setter Property="Foreground" Value="{DynamicResource Bad}" /></Style>
+
+  <!-- Buttons take their colours from Fluent's Button* resources (App.axaml); these classes only set shape. -->
+  <Style Selector="Button.plain, Button.accent, Button.danger">
+    <Setter Property="Height" Value="34" />
+    <Setter Property="Padding" Value="14,0" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.accent">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Style.Resources>
+      <SolidColorBrush x:Key="ButtonBackground" Color="#0067C0" />
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1673C9" />
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#00549F" />
+      <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#0067C0" />
+      <SolidColorBrush x:Key="ButtonForeground" Color="White" />
+      <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="White" />
+      <SolidColorBrush x:Key="ButtonForegroundPressed" Color="White" />
+      <SolidColorBrush x:Key="ButtonBorderBrush" Color="#0067C0" />
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#1673C9" />
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#00549F" />
+    </Style.Resources>
+  </Style>
+  <Style Selector="Button PathIcon"><Setter Property="Width" Value="14" /><Setter Property="Height" Value="14" /></Style>
+  <!-- Destructive action: an outlined button in the error colour, not a solid red fill. -->
+  <Style Selector="Button.danger /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource Bad}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Bad}" />
+  </Style>
+  <Style Selector="Button.danger PathIcon"><Setter Property="Foreground" Value="{DynamicResource Bad}" /></Style>
+  <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource Bad}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Bad}" />
+  </Style>
+  <Style Selector="Button.plain:disabled, Button.accent:disabled, Button.danger:disabled"><Setter Property="Opacity" Value="0.5" /></Style>
+
+  <!-- Card: a bordered surface. -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+
+  <!--
+    Tabs along the top. The tab items are Fluent's own, coloured by the TabItem* resources in App.axaml; only the strip
+    behind them is custom (a surface band with a bottom line).
+  -->
+  <Style Selector="TabControl.main, TabControl.sub">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <DockPanel>
+          <Border DockPanel.Dock="Top" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="18,0,18,0">
+            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" />
+          </Border>
+          <ContentPresenter Name="PART_SelectedContentHost" Background="{TemplateBinding Background}"
+                            Content="{TemplateBinding SelectedContent}" ContentTemplate="{TemplateBinding SelectedContentTemplate}" />
+        </DockPanel>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="TabControl.main > TabItem, TabControl.sub > TabItem">
+    <Setter Property="Margin" Value="0,0,12,0" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="TabControl.main > TabItem:selected, TabControl.sub > TabItem:selected"><Setter Property="FontWeight" Value="SemiBold" /></Style>
+  <Style Selector="TabControl.sub > TabItem">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="MinHeight" Value="36" />
+  </Style>
+
+  <!-- Key capture buttons and number boxes. -->
+  <Style Selector="Button.key"><Setter Property="MinWidth" Value="120" /><Setter Property="FontFamily" Value="Cascadia Mono, Consolas" /></Style>
+  <Style Selector="Border.pill">
+    <Setter Property="Background" Value="{DynamicResource Hover}" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="10,4" />
+  </Style>
+  <Style Selector="Button.danger.stop"><Setter Property="FontWeight" Value="SemiBold" /></Style>
+</Styles>

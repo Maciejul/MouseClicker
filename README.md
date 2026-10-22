@@ -12,7 +12,7 @@ A small Windows app that clicks the mouse repeatedly, or holds a key or mouse bu
 - Left, right or middle button, with an optional double click.
 - Click at the cursor, at a fixed screen point, or at a spot inside a window (found again by process name).
 - Auto-stop after a number of clicks or minutes.
-- Optional Windows notification when clicking starts.
+- Optional notice at the top of the screen when clicking starts.
 - Click counter and last-click time.
 - Default hotkey: F6 (changeable).
 
@@ -28,12 +28,13 @@ A small Windows app that clicks the mouse repeatedly, or holds a key or mouse bu
 ### Settings
 - **Profiles**: save named sets of clicker and hold settings, and switch between them from a list or with a key (default F8).
 - Start with Windows, start minimized, and minimize to the tray.
+- Dark mode switch under Settings > General > Appearance; it applies and saves at once.
 
 The four keys (hotkey, trigger, held key, next profile) must be different.
 
 ### Status
 - The Start/Stop button turns green while clicking is running.
-- The activity pill beside the tabs shows **Mouse clicker active**, **Hold active**, both, or **Idle**.
+- The status line under the title in the header shows **Mouse clicker active**, **Hold active**, both, or **Idle**.
 - The taskbar and window icon turn green while something is active.
 - The window title shows the version.
 
@@ -43,7 +44,7 @@ Download the latest `MouseClicker-Setup-<version>.exe` from the [Releases](https
 
 ## Build from source
 
-Requires the .NET 8 SDK (Windows).
+Requires the .NET 8 SDK (Windows). The UI is built with Avalonia 11 (Fluent theme).
 
 ```powershell
 dotnet build src/MouseClicker/MouseClicker.csproj -c Release
@@ -52,7 +53,7 @@ dotnet build src/MouseClicker/MouseClicker.csproj -c Release
 To create a single-file exe:
 
 ```powershell
-dotnet publish src/MouseClicker/MouseClicker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o publish/portable
+dotnet publish src/MouseClicker/MouseClicker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o publish/portable
 ```
 
 ## Releases

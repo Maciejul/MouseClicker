@@ -1,0 +1,122 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="MouseClicker.App"
+             RequestedThemeVariant="Light">
+  <!--
+    One palette, two variants. Fluent's own keys are overridden where Fluent has them (the system colours behind page, text and
+    buttons, and the tab and button resources), so every stock control follows the palette without restyling. The remaining
+    brushes (Surface, Border, Good ...) are this app's semantic extras that Fluent has no name for.
+  -->
+  <Application.Resources>
+    <ResourceDictionary>
+      <Color x:Key="SystemAccentColor">#0067C0</Color>
+      <Color x:Key="SystemAccentColorDark1">#00549F</Color>
+      <Color x:Key="SystemAccentColorLight1">#2B86D6</Color>
+      <x:Double x:Key="TabItemHeaderFontSize">14</x:Double>
+      <x:Double x:Key="TabItemMinHeight">40</x:Double>
+      <x:Double x:Key="TabItemPipeThickness">3</x:Double>
+
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <!-- Fluent system colours: page, primary text, secondary text -->
+          <Color x:Key="SystemRegionColor">#F3F5F8</Color>
+          <Color x:Key="SystemBaseHighColor">#1E2228</Color>
+          <Color x:Key="SystemBaseMediumColor">#69707A</Color>
+          <!-- App semantic brushes -->
+          <SolidColorBrush x:Key="Page" Color="#F3F5F8" />
+          <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="SurfaceAlt" Color="#F8F9FB" />
+          <SolidColorBrush x:Key="Border" Color="#DCE1E8" />
+          <SolidColorBrush x:Key="Hover" Color="#F1F4F8" />
+          <SolidColorBrush x:Key="SelectedRow" Color="#D6E8FB" />
+          <SolidColorBrush x:Key="AccentText" Color="#0067C0" />
+          <SolidColorBrush x:Key="Good" Color="#107C10" />
+          <SolidColorBrush x:Key="Warn" Color="#9D5D00" />
+          <SolidColorBrush x:Key="Bad" Color="#B42318" />
+          <SolidColorBrush x:Key="BadgeInfoBack" Color="#DEECFC" />
+          <SolidColorBrush x:Key="BadgeInfoText" Color="#00549F" />
+          <SolidColorBrush x:Key="BadgeWarnBack" Color="#FFCD5A" />
+          <SolidColorBrush x:Key="BadgeWarnText" Color="#5A3C00" />
+          <SolidColorBrush x:Key="BadgeErrorBack" Color="#C82828" />
+          <SolidColorBrush x:Key="BadgeDebugBack" Color="#828994" />
+          <!-- Inputs sit one step above the card they are on -->
+          <SolidColorBrush x:Key="TextControlBackground" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="ComboBoxBackground" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#F1F4F8" />
+          <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="#F1F4F8" />
+          <!-- Fluent button resources: plain, outlined buttons -->
+          <SolidColorBrush x:Key="ButtonBackground" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#F1F4F8" />
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#DCE1E8" />
+          <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="ButtonForeground" Color="#1E2228" />
+          <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#1E2228" />
+          <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#1E2228" />
+          <SolidColorBrush x:Key="ButtonBorderBrush" Color="#DCE1E8" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#C9D0DA" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#C9D0DA" />
+          <!-- Fluent tab resources: text tabs with an accent underline -->
+          <SolidColorBrush x:Key="TabItemHeaderForegroundUnselected" Color="#69707A" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundUnselectedPointerOver" Color="#1E2228" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundUnselectedPressed" Color="#1E2228" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundSelected" Color="#0067C0" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundSelectedPointerOver" Color="#0067C0" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundSelectedPressed" Color="#0067C0" />
+          <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="#0067C0" />
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+          <Color x:Key="SystemRegionColor">#1B1D22</Color>
+          <Color x:Key="SystemBaseHighColor">#DCDFE4</Color>
+          <Color x:Key="SystemBaseMediumColor">#9CA4AF</Color>
+          <SolidColorBrush x:Key="Page" Color="#1B1D22" />
+          <SolidColorBrush x:Key="Surface" Color="#24272D" />
+          <SolidColorBrush x:Key="SurfaceAlt" Color="#2A2D34" />
+          <SolidColorBrush x:Key="Border" Color="#3E434C" />
+          <SolidColorBrush x:Key="Hover" Color="#30343C" />
+          <SolidColorBrush x:Key="SelectedRow" Color="#1C3A62" />
+          <SolidColorBrush x:Key="AccentText" Color="#60A5FA" />
+          <SolidColorBrush x:Key="Good" Color="#5AC86E" />
+          <SolidColorBrush x:Key="Warn" Color="#F0B446" />
+          <SolidColorBrush x:Key="Bad" Color="#FF7D73" />
+          <SolidColorBrush x:Key="BadgeInfoBack" Color="#1E3454" />
+          <SolidColorBrush x:Key="BadgeInfoText" Color="#8EC1FF" />
+          <SolidColorBrush x:Key="BadgeWarnBack" Color="#5A4410" />
+          <SolidColorBrush x:Key="BadgeWarnText" Color="#FFD479" />
+          <SolidColorBrush x:Key="BadgeErrorBack" Color="#A03030" />
+          <SolidColorBrush x:Key="BadgeDebugBack" Color="#5A616B" />
+          <!-- Inputs sit one step above the card they are on -->
+          <SolidColorBrush x:Key="TextControlBackground" Color="#2E323A" />
+          <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2E323A" />
+          <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2E323A" />
+          <SolidColorBrush x:Key="ComboBoxBackground" Color="#2E323A" />
+          <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#363B44" />
+          <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="#363B44" />
+          <SolidColorBrush x:Key="ButtonBackground" Color="#24272D" />
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#30343C" />
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3E434C" />
+          <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#24272D" />
+          <SolidColorBrush x:Key="ButtonForeground" Color="#DCDFE4" />
+          <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#DCDFE4" />
+          <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#DCDFE4" />
+          <SolidColorBrush x:Key="ButtonBorderBrush" Color="#3E434C" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#566070" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#566070" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundUnselected" Color="#9CA4AF" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundUnselectedPointerOver" Color="#DCDFE4" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundUnselectedPressed" Color="#DCDFE4" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundSelected" Color="#60A5FA" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundSelectedPointerOver" Color="#60A5FA" />
+          <SolidColorBrush x:Key="TabItemHeaderForegroundSelectedPressed" Color="#60A5FA" />
+          <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="#60A5FA" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://MouseClicker/UI/Styles.axaml" />
+  </Application.Styles>
+</Application>

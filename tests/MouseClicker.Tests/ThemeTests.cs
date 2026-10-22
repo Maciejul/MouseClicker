@@ -1,75 +1,65 @@
-using Application = System.Windows.Application;
-using Color = System.Windows.Media.Color;
-using ComboBox = System.Windows.Controls.ComboBox;
-using Control = System.Windows.Controls.Control;
-using CheckBox = System.Windows.Controls.CheckBox;
-using RadioButton = System.Windows.Controls.RadioButton;
-using Button = System.Windows.Controls.Button;
-using TextBox = System.Windows.Controls.TextBox;
-using Size = System.Windows.Size;
+using System.Xml.Linq;
 using Xunit;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Media;
 
 namespace MouseClicker.Tests;
 
 public class ThemeTests
 {
-    /// <summary>Runs on an STA thread with the real App resources loaded (WPF needs both), and rethrows what went wrong there.</summary>
-    private static void OnUiThread(Action body)
+    private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+    private static XElement LoadAppXaml()
     {
-        Exception? failure = null;
-        var thread = new Thread(() =>
-        {
-            try
-            {
-                var app = new App();
-                app.InitializeComponent();
-                body();
-            }
-            catch (Exception ex)
-            {
-                failure = ex;
-            }
-        });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
-        if (failure is not null) throw new Xunit.Sdk.XunitException(failure.ToString());
+        string? dir = AppContext.BaseDirectory;
+        while (dir is not null && !File.Exists(Path.Combine(dir, "src", "MouseClicker", "App.axaml"))) dir = Path.GetDirectoryName(dir);
+        Assert.NotNull(dir);
+        return XDocument.Load(Path.Combine(dir!, "src", "MouseClicker", "App.axaml")).Root!;
+    }
+
+    /// <summary>Brush colours of one theme variant ("Light" or "Dark") in App.axaml, by resource key.</summary>
+    private static Dictionary<string, string> Palette(string variant)
+    {
+        XElement dictionary = LoadAppXaml().Descendants()
+            .Where(e => e.Name.LocalName == "ResourceDictionary" && (string?)e.Attribute(Xaml + "Key") == variant)
+            .Single();
+        return dictionary.Elements()
+            .ToDictionary(e => (string)e.Attribute(Xaml + "Key")!, e => (string?)e.Attribute("Color") ?? e.Value.Trim());
+    }
+
+    private static int Lightness(string hex)
+    {
+        string h = hex.TrimStart('#');
+        return Convert.ToInt32(h[..2], 16) + Convert.ToInt32(h[2..4], 16) + Convert.ToInt32(h[4..6], 16);
     }
 
     [Fact]
-    public void App_resources_load_and_switching_the_palette_replaces_the_brushes()
+    public void Light_and_dark_palettes_define_the_same_keys()
     {
-        OnUiThread(() =>
-        {
-            var box = new ComboBox();
-            box.Items.Add(new ComboBoxItem { Content = "Left button" });
-            box.SelectedIndex = 0;
-            var controls = new Control[] { new CheckBox { Content = "x" }, new RadioButton { Content = "y" }, box, new Button { Content = "z" }, new TextBox(), new Separator(), new ToggleButton() };
-            var panel = new StackPanel();
-            foreach (var c in controls) panel.Children.Add(c);
+        var light = Palette("Light");
+        var dark = Palette("Dark");
+        Assert.Equal(light.Keys.OrderBy(k => k), dark.Keys.OrderBy(k => k));
+        Assert.NotEqual(light["Page"], dark["Page"]);
+    }
 
-            panel.Measure(new Size(400, 400));
-            panel.Arrange(new Rect(0, 0, 400, 400));
+    [Fact]
+    public void Dark_palette_layers_page_then_card_then_input()
+    {
+        var dark = Palette("Dark");
+        Assert.True(Lightness(dark["Page"]) < Lightness(dark["Surface"]));
+        Assert.True(Lightness(dark["Surface"]) < Lightness(dark["TextControlBackground"]));
+        Assert.True(Lightness(dark["Surface"]) < Lightness(dark["ComboBoxBackground"]));
+        // Text stays off-white, not pure white.
+        Assert.NotEqual("#FFFFFF", dark["SystemBaseHighColor"].ToUpperInvariant());
+    }
 
-            // A template that fails to load throws above; one that loads has visual children.
-            foreach (var c in controls) Assert.True(System.Windows.Media.VisualTreeHelper.GetChildrenCount(c) > 0, c.GetType().Name);
-
-            ThemeService.Apply(dark: false);
-            var light = ((SolidColorBrush)Application.Current.Resources["WindowBg"]).Color;
-            ThemeService.Apply(dark: true);
-            var dark = ((SolidColorBrush)Application.Current.Resources["WindowBg"]).Color;
-
-            Assert.NotEqual(light, dark);
-            Assert.True(ThemeService.Dark);
-            // Dark layers by lightness: window, then card, then field.
-            static int Sum(Color c) => c.R + c.G + c.B;
-            var res = Application.Current.Resources;
-            Assert.True(Sum(((SolidColorBrush)res["WindowBg"]).Color) < Sum(((SolidColorBrush)res["CardBg"]).Color));
-            Assert.True(Sum(((SolidColorBrush)res["CardBg"]).Color) < Sum(((SolidColorBrush)res["FieldBrush"]).Color));
-        });
+    [Theory]
+    [InlineData(0x41, "A")]
+    [InlineData(0x70, "F1")]
+    [InlineData(0x75, "F6")]
+    [InlineData(0x1B, "Esc")]
+    [InlineData(0x20, "Space")]
+    [InlineData(0x31, "1")]
+    public void Key_names_are_readable(int vk, string expected)
+    {
+        Assert.Equal(expected, KeyNames.Name(vk));
     }
 }

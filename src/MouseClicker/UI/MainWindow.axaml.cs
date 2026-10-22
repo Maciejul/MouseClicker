@@ -1,20 +1,26 @@
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Threading;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Shapes;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using Avalonia.Styling;
+using Avalonia.Threading;
 using Microsoft.Win32;
-using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 
 namespace MouseClicker;
 
-public partial class MainWindow : Window
+internal sealed partial class MainWindow : Window
 {
     private readonly AppSettings _settings;
     private readonly ClickEngine _engine = new();
     private readonly HoldEngine _holder = new();
     private readonly KeyboardHook _hook = new();
     private readonly HoldTriggerController _trigger;
-    private readonly TrayService _tray = new();
+    private readonly TrayController _tray;
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private readonly DispatcherTimer _statsTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private readonly DispatcherTimer _startButtonLock = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -22,6 +28,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _repressTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(3) };
     private readonly DispatcherTimer _captureTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _swallowTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private IntPtr _lastForeground;
 
     private bool _ready;                  // Guards handlers that fire while the controls are being filled in.
@@ -30,7 +37,9 @@ public partial class MainWindow : Window
     private bool _holdTriggerDown;        // Suppresses auto-repeat while the hold trigger stays held.
     private bool _profileKeyDown;         // Suppresses auto-repeat while the profile key stays held.
     private bool _syncingInterval;        // Stops the slider and the number box from updating each other in a loop.
-    private bool _launchedMinimized;
+    private bool _sanitizing;             // Stops the digits-only filter from re-entering itself.
+    private bool _swallowKeys;            // Keeps the key that just set a hotkey from also pressing the focused button.
+    private readonly bool _launchedMinimized;
     private int _captureCountdown;
 
     private int _shownRemaining = -1;     // Whole seconds last drawn for a timed hold, so the text only redraws on change.
@@ -38,8 +47,11 @@ public partial class MainWindow : Window
     private const int MaxIntervalMs = 1000;
     private const int MaxTimedSeconds = HoldTriggerController.MaxTimedSeconds;
 
-    private System.Windows.Media.ImageSource? _activeIcon;
-    private System.Windows.Media.ImageSource? _idleIcon;
+    private readonly Bitmap _idleImage = LoadBitmap("app.png");
+    private readonly Bitmap _activeImage = LoadBitmap("app-active.png");
+    private readonly WindowIcon _idleIcon;
+    private readonly WindowIcon _activeIcon;
+    private readonly TextBox[] _numberBoxes;
 
     private enum CaptureTarget
     {
@@ -50,16 +62,27 @@ public partial class MainWindow : Window
         ProfileKey,
     }
 
-    public MainWindow()
+    // The designer and the XAML loader need a parameterless constructor.
+    public MainWindow() : this(AppSettings.Load(), false)
     {
-        _settings = AppSettings.Load();
+    }
+
+    public MainWindow(AppSettings settings, bool startMinimized)
+    {
+        _settings = settings;
         _trigger = new HoldTriggerController(_holder, () => _settings, HeldDescription);
-        ThemeService.Apply(_settings.DarkMode);
         InitializeComponent();
-        SourceInitialized += (_, _) => ThemeService.ApplyTitleBar(this);
 
-        Title = $"Mouse Clicker v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3)}";
+        _idleIcon = LoadIcon("app.png");
+        _activeIcon = LoadIcon("app-active.png");
+        _tray = new TrayController();
+        _numberBoxes = new[] { IntervalBox, StopClicksBox, StopMinutesBox, MaxHoldBox, DoubleTapBox, TripleTapBox, ExtendBox };
 
+        string version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3);
+        Title = $"Mouse Clicker v{version}";
+        VersionLabel.Text = $"v{version}";
+
+        WireEvents();
         LoadUi();
         ApplyHoldConfig();
         UpdateHoldStatus();
@@ -111,25 +134,101 @@ public partial class MainWindow : Window
         _toastTimer.Tick += (_, _) =>
         {
             _toastTimer.Stop();
-            ToastBorder.Visibility = Visibility.Collapsed;
+            ToastBorder.IsVisible = false;
+        };
+
+        _swallowTimer.Tick += (_, _) =>
+        {
+            _swallowTimer.Stop();
+            _swallowKeys = false;
         };
 
         _captureTimer.Tick += OnCaptureTick;
 
-        _engine.Stopped += reason => Dispatcher.BeginInvoke(new Action(() =>
+        _engine.Stopped += reason => Dispatcher.UIThread.Post(() =>
         {
             UpdateStatus();
             ShowToast(reason);
-        }));
+        });
 
-        _launchedMinimized = Environment.GetCommandLineArgs().Contains("--minimized");
-        Loaded += (_, _) =>
+        _launchedMinimized = startMinimized;
+        Opened += (_, _) =>
         {
             if (_launchedMinimized && _settings.MinimizeToTray)
             {
-                Dispatcher.BeginInvoke(new Action(Hide));
+                Dispatcher.UIThread.Post(Hide);
             }
         };
+        Closed += OnClosed;
+    }
+
+    private static Bitmap LoadBitmap(string name)
+    {
+        using Stream stream = AssetLoader.Open(new Uri($"avares://MouseClicker/Assets/{name}"));
+        return new Bitmap(stream);
+    }
+
+    private static WindowIcon LoadIcon(string name)
+    {
+        using Stream stream = AssetLoader.Open(new Uri($"avares://MouseClicker/Assets/{name}"));
+        return new WindowIcon(stream);
+    }
+
+    private PathIcon MakeIcon(string key)
+    {
+        var icon = new PathIcon();
+        if (this.TryFindResource(key, ActualThemeVariant, out object? geometry) && geometry is Geometry data) icon.Data = data;
+        return icon;
+    }
+
+    private void WireEvents()
+    {
+        IntervalSlider.ValueChanged += OnIntervalSliderChanged;
+        IntervalBox.TextChanged += OnIntervalChanged;
+        JitterSlider.ValueChanged += OnJitterChanged;
+        ToggleRadio.IsCheckedChanged += OnModeChanged;
+        HoldRadio.IsCheckedChanged += OnModeChanged;
+        NotifySwitch.IsCheckedChanged += OnClickOptionsChanged;
+        HotkeyButton.Click += (_, _) => StartCapture(CaptureTarget.Hotkey, HotkeyButton);
+        StartStopButton.Click += OnStartStopClick;
+
+        ClickButtonCombo.SelectionChanged += OnClickOptionsChanged;
+        DoubleClickSwitch.IsCheckedChanged += OnClickOptionsChanged;
+        ClickTargetCombo.SelectionChanged += OnClickTargetChanged;
+        CaptureButton.Click += OnCaptureClick;
+        StopClicksBox.TextChanged += OnClickNumberChanged;
+        StopMinutesBox.TextChanged += OnClickNumberChanged;
+
+        HoldEnabledSwitch.IsCheckedChanged += OnHoldEnabledChanged;
+        StopOnHeldKeySwitch.IsCheckedChanged += OnStopOnHeldKeyChanged;
+        HoldTargetCombo.SelectionChanged += OnHoldOptionsChanged;
+        HoldTriggerButton.Click += (_, _) => StartCapture(CaptureTarget.HoldTrigger, HoldTriggerButton);
+        HeldKeyButton.Click += (_, _) => StartCapture(CaptureTarget.HeldKey, HeldKeyButton);
+        HeldMouseCombo.SelectionChanged += OnHoldOptionsChanged;
+        TapToggleRadio.IsCheckedChanged += OnHoldOptionsChanged;
+        TapWhileRadio.IsCheckedChanged += OnHoldOptionsChanged;
+        TapNoneRadio.IsCheckedChanged += OnHoldOptionsChanged;
+        MaxHoldBox.TextChanged += OnHoldNumberChanged;
+        HoldTimedSwitch.IsCheckedChanged += OnHoldOptionsChanged;
+        DoubleTapBox.TextChanged += OnHoldNumberChanged;
+        TripleTapBox.TextChanged += OnHoldNumberChanged;
+        ExtendSwitch.IsCheckedChanged += OnHoldOptionsChanged;
+        ExtendBox.TextChanged += OnHoldNumberChanged;
+
+        ProfileCombo.SelectionChanged += OnProfileSelected;
+        ProfileSaveButton.Click += OnProfileSave;
+        ProfileDeleteButton.Click += OnProfileDelete;
+        ProfileKeyButton.Click += (_, _) => StartCapture(CaptureTarget.ProfileKey, ProfileKeyButton);
+
+        DarkModeSwitch.IsCheckedChanged += OnDarkModeChanged;
+        StartWithWindowsSwitch.IsCheckedChanged += OnStartupChanged;
+        StartMinimizedSwitch.IsCheckedChanged += OnStartupChanged;
+        MinimizeToTraySwitch.IsCheckedChanged += OnStartupChanged;
+
+        foreach (TextBox box in _numberBoxes) box.LostFocus += OnNumberBoxLostFocus;
+
+        AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(KeyUpEvent, OnPreviewKeyUp, RoutingStrategies.Tunnel);
     }
 
     // Fills every control from the settings. Used at startup and after a profile is applied.
@@ -141,36 +240,36 @@ public partial class MainWindow : Window
         IntervalBox.Text = Math.Clamp(_settings.IntervalMs, 10, MaxIntervalMs).ToString();
         IntervalSlider.Value = Math.Clamp(_settings.IntervalMs, 10, 500);
         JitterSlider.Value = _settings.JitterPercent;
-        JitterLabel.Text = $"Random jitter: {_settings.JitterPercent}%";
-        NotifyCheck.IsChecked = _settings.NotifyOnStart;
+        JitterCard.Description = $"Random jitter: {_settings.JitterPercent}%";
+        NotifySwitch.IsChecked = _settings.NotifyOnStart;
         ToggleRadio.IsChecked = _settings.Mode == TriggerMode.Toggle;
         HoldRadio.IsChecked = _settings.Mode == TriggerMode.Hold;
 
         ClickButtonCombo.SelectedIndex = (int)_settings.ClickButton;
-        DoubleClickCheck.IsChecked = _settings.DoubleClick;
+        DoubleClickSwitch.IsChecked = _settings.DoubleClick;
         ClickTargetCombo.SelectedIndex = (int)_settings.ClickTarget;
         StopClicksBox.Text = _settings.StopAfterClicks.ToString();
         StopMinutesBox.Text = _settings.StopAfterMinutes.ToString();
         UpdateTargetText();
 
-        HoldEnabledCheck.IsChecked = _settings.HoldEnabled;
-        StopOnHeldKeyCheck.IsChecked = _settings.StopHoldOnHeldKey;
+        HoldEnabledSwitch.IsChecked = _settings.HoldEnabled;
+        StopOnHeldKeySwitch.IsChecked = _settings.StopHoldOnHeldKey;
         TapToggleRadio.IsChecked = _settings.SingleTap == SingleTapBehavior.Toggle;
         TapWhileRadio.IsChecked = _settings.SingleTap == SingleTapBehavior.WhileDown;
         TapNoneRadio.IsChecked = _settings.SingleTap == SingleTapBehavior.Nothing;
         MaxHoldBox.Text = _settings.MaxHoldSeconds.ToString();
-        HoldTimedCheck.IsChecked = _settings.HoldTimedEnabled;
+        HoldTimedSwitch.IsChecked = _settings.HoldTimedEnabled;
         DoubleTapBox.Text = _settings.DoubleTapSeconds.ToString();
         TripleTapBox.Text = _settings.TripleTapSeconds.ToString();
-        ExtendCheck.IsChecked = _settings.ExtendOnTap;
+        ExtendSwitch.IsChecked = _settings.ExtendOnTap;
         ExtendBox.Text = _settings.ExtendSeconds.ToString();
         HoldTargetCombo.SelectedIndex = (int)_settings.HoldTargetKind;
         HeldMouseCombo.SelectedIndex = (int)_settings.HeldMouseButton;
 
-        DarkModeCheck.IsChecked = _settings.DarkMode;
-        StartWithWindowsCheck.IsChecked = _settings.StartWithWindows;
-        StartMinimizedCheck.IsChecked = _settings.StartMinimized;
-        MinimizeToTrayCheck.IsChecked = _settings.MinimizeToTray;
+        DarkModeSwitch.IsChecked = _settings.DarkMode;
+        StartWithWindowsSwitch.IsChecked = _settings.StartWithWindows;
+        StartMinimizedSwitch.IsChecked = _settings.StartMinimized;
+        MinimizeToTraySwitch.IsChecked = _settings.MinimizeToTray;
 
         UpdateHotkeyText();
         UpdateHoldTriggerText();
@@ -208,7 +307,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private static int ReadInt(System.Windows.Controls.TextBox box, int min, int max, int current)
+    private static int ReadInt(TextBox box, int min, int max, int current)
     {
         return int.TryParse(box.Text, out int value) ? Math.Clamp(value, min, max) : current;
     }
@@ -224,10 +323,10 @@ public partial class MainWindow : Window
 
         _settings.JitterPercent = (int)JitterSlider.Value;
         _settings.Mode = HoldRadio.IsChecked == true ? TriggerMode.Hold : TriggerMode.Toggle;
-        _settings.NotifyOnStart = NotifyCheck.IsChecked == true;
+        _settings.NotifyOnStart = NotifySwitch.IsChecked == true;
 
         if (ClickButtonCombo.SelectedIndex >= 0) _settings.ClickButton = (ClickButton)ClickButtonCombo.SelectedIndex;
-        _settings.DoubleClick = DoubleClickCheck.IsChecked == true;
+        _settings.DoubleClick = DoubleClickSwitch.IsChecked == true;
         _settings.StopAfterClicks = ReadInt(StopClicksBox, 0, 1_000_000_000, _settings.StopAfterClicks);
         _settings.StopAfterMinutes = ReadInt(StopMinutesBox, 0, 100_000, _settings.StopAfterMinutes);
 
@@ -243,25 +342,21 @@ public partial class MainWindow : Window
             : TapNoneRadio.IsChecked == true ? SingleTapBehavior.Nothing
             : SingleTapBehavior.Toggle;
         _settings.MaxHoldSeconds = ReadInt(MaxHoldBox, 0, MaxTimedSeconds, _settings.MaxHoldSeconds);
-        _settings.HoldTimedEnabled = HoldTimedCheck.IsChecked == true;
+        _settings.HoldTimedEnabled = HoldTimedSwitch.IsChecked == true;
         _settings.DoubleTapSeconds = ReadInt(DoubleTapBox, 1, MaxTimedSeconds, _settings.DoubleTapSeconds);
         _settings.TripleTapSeconds = ReadInt(TripleTapBox, 1, MaxTimedSeconds, _settings.TripleTapSeconds);
-        _settings.ExtendOnTap = ExtendCheck.IsChecked == true;
+        _settings.ExtendOnTap = ExtendSwitch.IsChecked == true;
         _settings.ExtendSeconds = ReadInt(ExtendBox, 1, MaxTimedSeconds, _settings.ExtendSeconds);
         if (HoldTargetCombo.SelectedIndex >= 0) _settings.HoldTargetKind = (HoldTarget)HoldTargetCombo.SelectedIndex;
         if (HeldMouseCombo.SelectedIndex >= 0) _settings.HeldMouseButton = (ClickButton)HeldMouseCombo.SelectedIndex;
 
         // Show an option's details only while the option is in use.
         // The key and the mouse button each have their own labelled control under the trigger key.
-        Visibility keyVisibility = _settings.HoldTargetKind == HoldTarget.Mouse ? Visibility.Collapsed : Visibility.Visible;
-        Visibility mouseVisibility = _settings.HoldTargetKind == HoldTarget.Key ? Visibility.Collapsed : Visibility.Visible;
-        HeldKeyLabel.Visibility = keyVisibility;
-        HeldKeyButton.Visibility = keyVisibility;
-        HeldMouseLabel.Visibility = mouseVisibility;
-        HeldMouseCombo.Visibility = mouseVisibility;
-        MaxHoldPanel.Visibility = _settings.SingleTap == SingleTapBehavior.WhileDown ? Visibility.Visible : Visibility.Collapsed;
-        TimedPanel.Visibility = _settings.HoldTimedEnabled ? Visibility.Visible : Visibility.Collapsed;
-        ExtendRow.Visibility = _settings.ExtendOnTap ? Visibility.Visible : Visibility.Collapsed;
+        HeldKeyCard.IsVisible = _settings.HoldTargetKind != HoldTarget.Mouse;
+        HeldMouseCard.IsVisible = _settings.HoldTargetKind != HoldTarget.Key;
+        MaxHoldCard.IsVisible = _settings.SingleTap == SingleTapBehavior.WhileDown;
+        TimedPanel.IsVisible = _settings.HoldTimedEnabled;
+        ExtendRow.IsVisible = _settings.ExtendOnTap;
         ApplyHoldConfig();
         QueueSave();
         UpdateHoldStatus();
@@ -273,8 +368,24 @@ public partial class MainWindow : Window
         _trigger.Sync();
     }
 
-    private void OnIntervalChanged(object sender, TextChangedEventArgs e)
+    // Number boxes take digits only: anything else (typed or pasted) is dropped as it arrives.
+    private void SanitizeDigits(TextBox box)
     {
+        string text = box.Text ?? "";
+        if (text.All(char.IsAsciiDigit)) return;
+
+        _sanitizing = true;
+        int caret = box.CaretIndex;
+        string cleaned = new(text.Where(char.IsAsciiDigit).ToArray());
+        box.Text = cleaned;
+        box.CaretIndex = Math.Min(caret, cleaned.Length);
+        _sanitizing = false;
+    }
+
+    private void OnIntervalChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (_sanitizing) return;
+        SanitizeDigits(IntervalBox);
         if (!_ready || _syncingInterval) return;
 
         if (int.TryParse(IntervalBox.Text, out int ms))
@@ -298,7 +409,7 @@ public partial class MainWindow : Window
         PushSettings();
     }
 
-    private void OnIntervalSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void OnIntervalSliderChanged(object? sender, RangeBaseValueChangedEventArgs e)
     {
         if (!_ready || _syncingInterval) return;
 
@@ -309,33 +420,41 @@ public partial class MainWindow : Window
         PushSettings();
     }
 
-    private void OnNotifyChanged(object sender, RoutedEventArgs e) => PushSettings();
+    private void OnClickOptionsChanged(object? sender, RoutedEventArgs e) => PushSettings();
 
-    private void OnClickOptionsChanged(object sender, RoutedEventArgs e) => PushSettings();
-
-    private void OnClickNumberChanged(object sender, TextChangedEventArgs e) => PushSettings();
-
-    private void OnHoldOptionsChanged(object sender, RoutedEventArgs e) => PushHoldSettings();
-
-    private void OnHoldNumberChanged(object sender, TextChangedEventArgs e) => PushHoldSettings();
-
-    private void OnJitterChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void OnClickNumberChanged(object? sender, TextChangedEventArgs e)
     {
-        if (!_ready) return;
-        JitterLabel.Text = $"Random jitter: {(int)e.NewValue}%";
+        if (_sanitizing) return;
+        if (sender is TextBox box) SanitizeDigits(box);
         PushSettings();
     }
 
-    private void OnModeChanged(object sender, RoutedEventArgs e)
+    private void OnHoldOptionsChanged(object? sender, RoutedEventArgs e) => PushHoldSettings();
+
+    private void OnHoldNumberChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (_sanitizing) return;
+        if (sender is TextBox box) SanitizeDigits(box);
+        PushHoldSettings();
+    }
+
+    private void OnJitterChanged(object? sender, RangeBaseValueChangedEventArgs e)
     {
         if (!_ready) return;
+        JitterCard.Description = $"Random jitter: {(int)e.NewValue}%";
+        PushSettings();
+    }
+
+    private void OnModeChanged(object? sender, RoutedEventArgs e)
+    {
+        if (!_ready || sender is not RadioButton { IsChecked: true }) return;
         _engine.Stop();
         _hotkeyDown = false;
         PushSettings();
         UpdateStatus();
     }
 
-    private void OnStartStopClick(object sender, RoutedEventArgs e)
+    private void OnStartStopClick(object? sender, RoutedEventArgs e)
     {
         // The clicker sends clicks at the cursor, which sits on this button right after Start.
         // Lock the button briefly so those synthetic clicks cannot toggle it straight back off.
@@ -356,27 +475,19 @@ public partial class MainWindow : Window
         UpdateStatus();
     }
 
-    private void OnHotkeyButtonClick(object sender, RoutedEventArgs e) => StartCapture(CaptureTarget.Hotkey, HotkeyButton);
-
-    private void OnHoldTriggerButtonClick(object sender, RoutedEventArgs e) => StartCapture(CaptureTarget.HoldTrigger, HoldTriggerButton);
-
-    private void OnHeldKeyButtonClick(object sender, RoutedEventArgs e) => StartCapture(CaptureTarget.HeldKey, HeldKeyButton);
-
-    private void OnProfileKeyButtonClick(object sender, RoutedEventArgs e) => StartCapture(CaptureTarget.ProfileKey, ProfileKeyButton);
-
-    private void OnStopOnHeldKeyChanged(object sender, RoutedEventArgs e)
+    private void OnStopOnHeldKeyChanged(object? sender, RoutedEventArgs e)
     {
         if (!_ready) return;
 
-        _settings.StopHoldOnHeldKey = StopOnHeldKeyCheck.IsChecked == true;
+        _settings.StopHoldOnHeldKey = StopOnHeldKeySwitch.IsChecked == true;
         QueueSave();
     }
 
-    private void OnHoldEnabledChanged(object sender, RoutedEventArgs e)
+    private void OnHoldEnabledChanged(object? sender, RoutedEventArgs e)
     {
         if (!_ready) return;
 
-        _settings.HoldEnabled = HoldEnabledCheck.IsChecked == true;
+        _settings.HoldEnabled = HoldEnabledSwitch.IsChecked == true;
         if (!_settings.HoldEnabled)
         {
             _trigger.Cancel();
@@ -389,7 +500,7 @@ public partial class MainWindow : Window
 
     // Click target ------------------------------------------------------------------------------------------------
 
-    private void OnClickTargetChanged(object sender, RoutedEventArgs e)
+    private void OnClickTargetChanged(object? sender, RoutedEventArgs e)
     {
         if (!_ready) return;
 
@@ -398,12 +509,12 @@ public partial class MainWindow : Window
         PushSettings();
     }
 
-    private void OnCaptureClick(object sender, RoutedEventArgs e)
+    private void OnCaptureClick(object? sender, RoutedEventArgs e)
     {
         // The user needs a moment to move the cursor over the spot, so wait a few seconds before reading it.
         _captureCountdown = 3;
         CaptureButton.IsEnabled = false;
-        CaptureButton.Content = $"Move the cursor... {_captureCountdown}";
+        CaptureText.Text = $"Move the cursor... {_captureCountdown}";
         _captureTimer.Start();
     }
 
@@ -412,7 +523,7 @@ public partial class MainWindow : Window
         _captureCountdown--;
         if (_captureCountdown > 0)
         {
-            CaptureButton.Content = $"Move the cursor... {_captureCountdown}";
+            CaptureText.Text = $"Move the cursor... {_captureCountdown}";
             return;
         }
 
@@ -446,11 +557,11 @@ public partial class MainWindow : Window
     private void UpdateTargetText()
     {
         _captureTimer.Stop();
-        CaptureButton.Content = "Capture (3 s)";
+        CaptureText.Text = "Capture (3 s)";
         CaptureButton.IsEnabled = _settings.ClickTarget != ClickTargetKind.Cursor;
-        CaptureButton.Visibility = _settings.ClickTarget == ClickTargetKind.Cursor ? Visibility.Collapsed : Visibility.Visible;
+        CaptureButton.IsVisible = _settings.ClickTarget != ClickTargetKind.Cursor;
 
-        TargetText.Text = _settings.ClickTarget switch
+        TargetCard.Description = _settings.ClickTarget switch
         {
             ClickTargetKind.Point => $"Point {_settings.PointX}, {_settings.PointY}. Capture reads the cursor after 3 s.",
             ClickTargetKind.Window => _settings.WindowProcess is null
@@ -462,33 +573,39 @@ public partial class MainWindow : Window
 
     // Keys --------------------------------------------------------------------------------------------------------
 
-    private void StartCapture(CaptureTarget target, System.Windows.Controls.Button button)
+    private void StartCapture(CaptureTarget target, Button button)
     {
         _capture = target;
         button.Content = "Press a key...";
     }
 
-    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    // The captured key comes from the global hook, which sees the real virtual-key code. This swallows the same key press
+    // inside the window, so a Space or Enter that sets a hotkey does not also press the focused button.
+    private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
-        if (_capture == CaptureTarget.None) return;
+        if (_swallowKeys || _capture != CaptureTarget.None) e.Handled = true;
+    }
 
-        e.Handled = true;
-        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+    private void OnPreviewKeyUp(object? sender, KeyEventArgs e)
+    {
+        if (_swallowKeys || _capture != CaptureTarget.None) e.Handled = true;
+    }
+
+    private void FinishCapture(int vk)
+    {
         CaptureTarget target = _capture;
         _capture = CaptureTarget.None;
 
-        if (key != Key.Escape && key != Key.None)
+        // 0x1B is Escape: it cancels.
+        if (vk != 0x1B && !IsKeyInUse(vk, except: target))
         {
-            int vk = KeyInterop.VirtualKeyFromKey(key);
-
             // The keys share one global hook, so one key cannot drive two actions.
-            if (!IsKeyInUse(vk, except: target))
-            {
-                SetKeyForTarget(target, vk);
-                QueueSave();
-            }
+            SetKeyForTarget(target, vk);
+            QueueSave();
         }
 
+        _swallowKeys = true;
+        _swallowTimer.Stop();
         UpdateHotkeyText();
         UpdateHoldTriggerText();
         UpdateHeldKeyText();
@@ -527,7 +644,11 @@ public partial class MainWindow : Window
     // Global hotkey handling. These run for every key press on the system, including while this window is not focused.
     private void OnGlobalKeyDown(int vk, bool injected)
     {
-        if (_capture != CaptureTarget.None) return;
+        if (_capture != CaptureTarget.None)
+        {
+            if (!injected) FinishCapture(vk);
+            return;
+        }
 
         if (!injected && vk == _settings.HeldKeyVk && _settings.StopHoldOnHeldKey)
         {
@@ -581,6 +702,13 @@ public partial class MainWindow : Window
 
     private void OnGlobalKeyUp(int vk, bool injected)
     {
+        if (_swallowKeys)
+        {
+            // Give the window a moment to see this key's release before it may act on keys again.
+            _swallowTimer.Stop();
+            _swallowTimer.Start();
+        }
+
         if (vk == _settings.HoldTriggerVk)
         {
             _holdTriggerDown = false;
@@ -634,13 +762,13 @@ public partial class MainWindow : Window
         _ready = wasReady;
     }
 
-    private void OnProfileSelected(object sender, SelectionChangedEventArgs e)
+    private void OnProfileSelected(object? sender, SelectionChangedEventArgs e)
     {
         if (!_ready || ProfileCombo.SelectedItem is not string name) return;
         ApplyProfileByName(name);
     }
 
-    private void OnProfileSave(object sender, RoutedEventArgs e)
+    private void OnProfileSave(object? sender, RoutedEventArgs e)
     {
         PushSettings();
         PushHoldSettings();
@@ -651,7 +779,7 @@ public partial class MainWindow : Window
         ShowToast($"Saved profile {name}");
     }
 
-    private void OnProfileDelete(object sender, RoutedEventArgs e)
+    private void OnProfileDelete(object? sender, RoutedEventArgs e)
     {
         if (ProfileCombo.SelectedItem is not string name) return;
         if (!_settings.DeleteProfile(name)) return;
@@ -696,26 +824,22 @@ public partial class MainWindow : Window
 
     // Startup and tray --------------------------------------------------------------------------------------------
 
-    private void OnDarkModeChanged(object sender, RoutedEventArgs e)
+    private void OnDarkModeChanged(object? sender, RoutedEventArgs e)
     {
         if (!_ready) return;
 
-        _settings.DarkMode = DarkModeCheck.IsChecked == true;
+        _settings.DarkMode = DarkModeSwitch.IsChecked == true;
         QueueSave();
-
-        ThemeService.Apply(_settings.DarkMode);
-        ThemeService.ApplyTitleBar(this);
-        _tray.ApplyTheme();
-        UpdateStatus(); // the activity pill's dot and text took brushes by name
+        App.SetDark(_settings.DarkMode);
     }
 
-    private void OnStartupChanged(object sender, RoutedEventArgs e)
+    private void OnStartupChanged(object? sender, RoutedEventArgs e)
     {
         if (!_ready) return;
 
-        _settings.StartWithWindows = StartWithWindowsCheck.IsChecked == true;
-        _settings.StartMinimized = StartMinimizedCheck.IsChecked == true;
-        _settings.MinimizeToTray = MinimizeToTrayCheck.IsChecked == true;
+        _settings.StartWithWindows = StartWithWindowsSwitch.IsChecked == true;
+        _settings.StartMinimized = StartMinimizedSwitch.IsChecked == true;
+        _settings.MinimizeToTray = MinimizeToTraySwitch.IsChecked == true;
         QueueSave();
 
         StartupRegistration.Apply(_settings.StartWithWindows, _settings.StartMinimized);
@@ -731,16 +855,18 @@ public partial class MainWindow : Window
         Activate();
     }
 
-    private void OnStateChanged(object? sender, EventArgs e)
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
-        if (WindowState == WindowState.Minimized && _settings.MinimizeToTray) Hide();
+        base.OnPropertyChanged(change);
+        if (change.Property == WindowStateProperty && WindowState == WindowState.Minimized && _settings.MinimizeToTray) Hide();
     }
 
     private void ShowStartNotification()
     {
         if (!_settings.NotifyOnStart) return;
 
-        _tray.ShowBalloon($"Clicking every {_settings.IntervalMs} ms. Total clicks: {_engine.ClickCount:N0}");
+        // A click-through notice at the top of the screen; it shows over a game even while this window is hidden.
+        OverlayToast.ShowMessage("Mouse Clicker", $"Clicking every {_settings.IntervalMs} ms. Total clicks: {_engine.ClickCount:N0}");
     }
 
     // Safety ------------------------------------------------------------------------------------------------------
@@ -759,13 +885,13 @@ public partial class MainWindow : Window
         if (e.Reason is SessionSwitchReason.SessionLock or SessionSwitchReason.SessionLogoff
             or SessionSwitchReason.ConsoleDisconnect or SessionSwitchReason.RemoteDisconnect)
         {
-            Dispatcher.BeginInvoke(new Action(StopEverything));
+            Dispatcher.UIThread.Post(StopEverything);
         }
     }
 
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
     {
-        if (e.Mode == PowerModes.Suspend) Dispatcher.BeginInvoke(new Action(StopEverything));
+        if (e.Mode == PowerModes.Suspend) Dispatcher.UIThread.Post(StopEverything);
     }
 
     private void StopEverything()
@@ -797,28 +923,8 @@ public partial class MainWindow : Window
 
     // Number boxes ------------------------------------------------------------------------------------------------
 
-    private bool IsNumberBox(object source) => source is System.Windows.Controls.TextBox box && box != ProfileNameBox;
-
-    private void OnPreviewTextInput(object sender, TextCompositionEventArgs e)
+    private void OnNumberBoxLostFocus(object? sender, RoutedEventArgs e)
     {
-        // The number boxes take digits only.
-        if (IsNumberBox(e.OriginalSource) && !e.Text.All(char.IsAsciiDigit)) e.Handled = true;
-    }
-
-    private void OnPaste(object sender, DataObjectPastingEventArgs e)
-    {
-        if (!IsNumberBox(e.OriginalSource)) return;
-
-        if (e.DataObject.GetData(System.Windows.DataFormats.UnicodeText) is not string text || !text.All(char.IsAsciiDigit))
-        {
-            e.CancelCommand();
-        }
-    }
-
-    private void OnNumberBoxLostFocus(object sender, RoutedEventArgs e)
-    {
-        if (!IsNumberBox(e.OriginalSource)) return;
-
         // A box can hold a value the app has clamped or ignored (an empty box, 5 ms in a 10 ms minimum).
         // Show the value that is actually in use.
         bool wasReady = _ready;
@@ -838,26 +944,24 @@ public partial class MainWindow : Window
     private void ShowToast(string message)
     {
         ToastText.Text = message;
-        ToastBorder.Visibility = Visibility.Visible;
+        ToastBorder.IsVisible = true;
         _toastTimer.Stop();
         _toastTimer.Start();
     }
 
-    private static string KeyName(int vk) => KeyInterop.KeyFromVirtualKey(vk).ToString();
+    private void UpdateHotkeyText() => HotkeyButton.Content = KeyNames.Name(_settings.HotkeyVk);
 
-    private void UpdateHotkeyText() => HotkeyButton.Content = KeyName(_settings.HotkeyVk);
+    private void UpdateHoldTriggerText() => HoldTriggerButton.Content = KeyNames.Name(_settings.HoldTriggerVk);
 
-    private void UpdateHoldTriggerText() => HoldTriggerButton.Content = KeyName(_settings.HoldTriggerVk);
+    private void UpdateHeldKeyText() => HeldKeyButton.Content = KeyNames.Name(_settings.HeldKeyVk);
 
-    private void UpdateHeldKeyText() => HeldKeyButton.Content = KeyName(_settings.HeldKeyVk);
-
-    private void UpdateProfileKeyText() => ProfileKeyButton.Content = KeyName(_settings.ProfileNextVk);
+    private void UpdateProfileKeyText() => ProfileKeyButton.Content = KeyNames.Name(_settings.ProfileNextVk);
 
     private string HeldDescription() => _settings.HoldTargetKind switch
     {
-        HoldTarget.Key => $"{KeyName(_settings.HeldKeyVk)} key",
+        HoldTarget.Key => $"{KeyNames.Name(_settings.HeldKeyVk)} key",
         HoldTarget.Mouse => $"{_settings.HeldMouseButton} mouse button",
-        _ => $"{KeyName(_settings.HeldKeyVk)} key and {_settings.HeldMouseButton} mouse button",
+        _ => $"{KeyNames.Name(_settings.HeldKeyVk)} key and {_settings.HeldMouseButton} mouse button",
     };
 
     private void UpdateHoldStatus()
@@ -883,51 +987,13 @@ public partial class MainWindow : Window
         };
 
         bool active = clicking || holding;
-        ActivityDot.Fill = (System.Windows.Media.Brush)FindResource(active ? "SuccessBrush" : "MutedBrush");
-        ActivityText.Foreground = (System.Windows.Media.Brush)FindResource(active ? "TextBrush" : "MutedBrush");
-        Icon = active ? (_activeIcon ??= BuildIcon(recolorGreen: true)) : (_idleIcon ??= BuildIcon(recolorGreen: false));
-    }
+        ActivityDot[!Shape.FillProperty] = this.GetResourceObservable(active ? "Good" : "SystemControlForegroundBaseMediumBrush").ToBinding();
+        ActivityText.Classes.Set("muted", !active);
 
-    // Builds the app icon for the title bar and taskbar. When recolorGreen is set, the blue and green
-    // channels are swapped, which turns the icon's blue into green and keeps its shading.
-    // Returns null if the icon cannot be built, which leaves the default window icon in place.
-    private static System.Windows.Media.ImageSource? BuildIcon(bool recolorGreen)
-    {
-        try
-        {
-            // The app's own icon is embedded in the exe, so read it from there.
-            using System.Drawing.Icon exeIcon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath!)!;
-            var source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
-                exeIcon.Handle,
-                System.Windows.Int32Rect.Empty,
-                System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
-
-            var converted = new System.Windows.Media.Imaging.FormatConvertedBitmap(source, System.Windows.Media.PixelFormats.Pbgra32, null, 0);
-            int width = converted.PixelWidth;
-            int height = converted.PixelHeight;
-            int stride = width * 4;
-            byte[] pixels = new byte[stride * height];
-            converted.CopyPixels(pixels, stride, 0);
-
-            if (recolorGreen)
-            {
-                // Pixels are stored as B, G, R, A. Swapping B and G moves blue into the green channel.
-                for (int i = 0; i < pixels.Length; i += 4)
-                {
-                    (pixels[i], pixels[i + 1]) = (pixels[i + 1], pixels[i]);
-                }
-            }
-
-            var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(
-                width, height, 96, 96, System.Windows.Media.PixelFormats.Pbgra32, null, pixels, stride);
-            bitmap.Freeze();
-            return bitmap;
-        }
-        catch (Exception)
-        {
-            // The status icon is cosmetic; never let it stop the window from opening.
-            return null;
-        }
+        // The title bar, taskbar, header and tray show the green icon while something is running.
+        Icon = active ? _activeIcon : _idleIcon;
+        HeaderIcon.Source = active ? _activeImage : _idleImage;
+        _tray.SetActive(active);
     }
 
     private void OnStartButtonLockElapsed(object? sender, EventArgs e)
@@ -939,8 +1005,12 @@ public partial class MainWindow : Window
     private void UpdateStatus()
     {
         bool running = _engine.IsRunning;
-        StartStopButton.Content = running ? "Stop" : "Start";
-        StartStopButton.Tag = running ? "Running" : null;
+        var content = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8 };
+        content.Children.Add(MakeIcon(running ? "IconStop" : "IconPlay"));
+        content.Children.Add(new TextBlock { Text = running ? "Stop" : "Start" });
+        StartStopButton.Content = content;
+        StartStopButton.Classes.Set("accent", !running);
+        StartStopButton.Classes.Set("danger", running);
         UpdateActivityStatus();
     }
 
@@ -955,6 +1025,7 @@ public partial class MainWindow : Window
         _repressTimer.Stop();
         _toastTimer.Stop();
         _captureTimer.Stop();
+        _swallowTimer.Stop();
         FlushSave();
         _tray.Dispose();
 
