@@ -4,7 +4,7 @@
         x:Class="MouseClicker.MainWindow"
         Title="Mouse Clicker"
         Icon="avares://MouseClicker/Assets/app.ico"
-        Width="980" Height="760" MinWidth="820" MinHeight="520"
+        Width="980" Height="810" MinWidth="820" MinHeight="520"
         WindowStartupLocation="CenterScreen">
   <Grid>
     <DockPanel>
