@@ -33,9 +33,9 @@
         <!-- ======================================================== Clicker -->
         <TabItem Header="Clicker">
           <ScrollViewer><StackPanel Margin="22,16,22,18" Spacing="8">
-            <local:SectionHeader Title="Clicker" Subtitle="Start and stop with the hotkey or the button" />
-            <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+            <Grid ColumnDefinitions="*,*" >
               <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,10,0">
+            <local:SectionHeader Title="Clicker" Subtitle="Start and stop with the hotkey or the button" />
             <Border Classes="card" Padding="16,12">
               <Grid ColumnDefinitions="*,*,Auto">
                 <StackPanel Spacing="2">
@@ -121,9 +121,9 @@
         <!-- ======================================================== Hold -->
         <TabItem Header="Hold">
           <ScrollViewer><StackPanel Margin="22,16,22,18" Spacing="8">
-            <local:SectionHeader Title="Hold" Subtitle="Press and keep a key or mouse button down for you" />
-            <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+            <Grid ColumnDefinitions="*,*" >
               <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,10,0">
+            <local:SectionHeader Title="Hold" Subtitle="Press and keep a key or mouse button down for you" />
             <Border Classes="card" Padding="16,12">
               <TextBlock Name="HoldStatusText" Text="Not holding" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentText}" />
             </Border>
