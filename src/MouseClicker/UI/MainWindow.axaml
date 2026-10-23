@@ -35,7 +35,7 @@
           <ScrollViewer><StackPanel Margin="22,16,22,18" Spacing="8">
             <local:SectionHeader Title="Clicker" Subtitle="Start and stop with the hotkey or the button" />
             <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
-              <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,8,0">
+              <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,10,0">
             <Border Classes="card" Padding="16,12">
               <Grid ColumnDefinitions="*,*,Auto">
                 <StackPanel Spacing="2">
@@ -67,7 +67,16 @@
               </StackPanel>
             </Border>
 
-            <local:SectionHeader Title="Trigger" Subtitle="What starts the clicking" Margin="0,12,0,0" />
+            <local:SectionHeader Title="Auto-stop" Subtitle="0 means no limit" Margin="0,12,0,0" />
+            <local:SettingCard Title="After clicks" Description="Stop once this many clicks were sent">
+              <TextBox Name="StopClicksBox" Width="110" TextAlignment="Right" />
+            </local:SettingCard>
+            <local:SettingCard Title="After minutes" Description="Stop after clicking for this long">
+              <TextBox Name="StopMinutesBox" Width="110" TextAlignment="Right" />
+            </local:SettingCard>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="8" Margin="10,0,0,0">
+            <local:SectionHeader Title="Trigger" Subtitle="What starts the clicking" />
             <local:SettingCard Title="Trigger mode" Description="Toggle: press the hotkey to start and again to stop. Hold: click only while it is held">
               <StackPanel Orientation="Horizontal" Spacing="16">
                 <RadioButton Name="ToggleRadio" GroupName="Mode" Content="Toggle" />
@@ -80,8 +89,8 @@
             <local:SettingCard Title="Notify when clicking starts" Description="Shows a short notice at the top of the screen">
               <ToggleSwitch Name="NotifySwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
             </local:SettingCard>
-              </StackPanel>
-              <StackPanel Grid.Column="1" Spacing="8" Margin="8,0,0,0">            <local:SectionHeader Title="Click" Subtitle="What is clicked, and where" />
+
+            <local:SectionHeader Title="Click" Subtitle="What is clicked, and where" Margin="0,12,0,0" />
             <local:SettingCard Title="Mouse button" Description="Which button is pressed">
               <ComboBox Name="ClickButtonCombo" Width="160">
                 <ComboBoxItem Content="Left button" />
@@ -104,17 +113,9 @@
                 </Button>
               </StackPanel>
             </local:SettingCard>
-
-            <local:SectionHeader Title="Auto-stop" Subtitle="0 means no limit" Margin="0,12,0,0" />
-            <local:SettingCard Title="After clicks" Description="Stop once this many clicks were sent">
-              <TextBox Name="StopClicksBox" Width="110" TextAlignment="Right" />
-            </local:SettingCard>
-            <local:SettingCard Title="After minutes" Description="Stop after clicking for this long">
-              <TextBox Name="StopMinutesBox" Width="110" TextAlignment="Right" />
-            </local:SettingCard>
               </StackPanel>
             </Grid>
-                    </StackPanel></ScrollViewer>
+          </StackPanel></ScrollViewer>
         </TabItem>
 
         <!-- ======================================================== Hold -->
@@ -122,7 +123,7 @@
           <ScrollViewer><StackPanel Margin="22,16,22,18" Spacing="8">
             <local:SectionHeader Title="Hold" Subtitle="Press and keep a key or mouse button down for you" />
             <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
-              <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,8,0">
+              <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,10,0">
             <Border Classes="card" Padding="16,12">
               <TextBlock Name="HoldStatusText" Text="Not holding" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentText}" />
             </Border>
@@ -132,8 +133,8 @@
             <local:SettingCard Title="Stop when the held key is used" Description="Stop the hold when you press or release the held key yourself">
               <ToggleSwitch Name="StopOnHeldKeySwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
             </local:SettingCard>
-              </StackPanel>
-              <StackPanel Grid.Column="1" Spacing="8" Margin="8,0,0,0">            <local:SectionHeader Title="What to hold" Subtitle="And which keys drive it" />
+
+            <local:SectionHeader Title="What to hold" Subtitle="And which keys drive it" Margin="0,12,0,0" />
             <local:SettingCard Title="Hold" Description="A keyboard key, a mouse button or both">
               <ComboBox Name="HoldTargetCombo" Width="190">
                 <ComboBoxItem Content="Keyboard key" />
@@ -154,8 +155,9 @@
                 <ComboBoxItem Content="Middle button" />
               </ComboBox>
             </local:SettingCard>
-
-            <local:SectionHeader Title="Single tap" Subtitle="What one press of the trigger key does" Margin="0,12,0,0" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="8" Margin="10,0,0,0">
+            <local:SectionHeader Title="Single tap" Subtitle="What one press of the trigger key does" />
             <Border Classes="card" Padding="16,12">
               <StackPanel Spacing="4">
                 <RadioButton Name="TapToggleRadio" GroupName="Tap" Content="Toggle on / off" />
@@ -187,7 +189,7 @@
             </StackPanel>
               </StackPanel>
             </Grid>
-                    </StackPanel></ScrollViewer>
+          </StackPanel></ScrollViewer>
         </TabItem>
 
         <!-- ======================================================== Settings -->
