@@ -21,7 +21,9 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            10.0.x
+            8.0.x
 
       - name: Test
         run: dotnet test tests/MouseClicker.Tests -c Release --nologo
@@ -38,7 +40,9 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            10.0.x
+            8.0.x
 
       - name: Read version and check for an existing release
         id: ver

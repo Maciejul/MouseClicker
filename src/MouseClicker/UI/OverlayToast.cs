@@ -84,7 +84,7 @@ sealed class OverlayToast : Window
 
         Title = ToastTitle;
         Content = _root;
-        SystemDecorations = SystemDecorations.None;
+        WindowDecorations = WindowDecorations.None;
         ShowInTaskbar = false;
         ShowActivated = false;
         Topmost = true;
