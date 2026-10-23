@@ -4,7 +4,7 @@
         x:Class="MouseClicker.MainWindow"
         Title="Mouse Clicker"
         Icon="avares://MouseClicker/Assets/app.ico"
-        Width="720" Height="760" MinWidth="620" MinHeight="520"
+        Width="980" Height="760" MinWidth="820" MinHeight="520"
         WindowStartupLocation="CenterScreen">
   <Grid>
     <DockPanel>
@@ -34,6 +34,8 @@
         <TabItem Header="Clicker">
           <ScrollViewer><StackPanel Margin="22,16,22,18" Spacing="8">
             <local:SectionHeader Title="Clicker" Subtitle="Start and stop with the hotkey or the button" />
+            <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+              <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,8,0">
             <Border Classes="card" Padding="16,12">
               <Grid ColumnDefinitions="*,*,Auto">
                 <StackPanel Spacing="2">
@@ -78,8 +80,8 @@
             <local:SettingCard Title="Notify when clicking starts" Description="Shows a short notice at the top of the screen">
               <ToggleSwitch Name="NotifySwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
             </local:SettingCard>
-
-            <local:SectionHeader Title="Click" Subtitle="What is clicked, and where" Margin="0,12,0,0" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="8" Margin="8,0,0,0">            <local:SectionHeader Title="Click" Subtitle="What is clicked, and where" />
             <local:SettingCard Title="Mouse button" Description="Which button is pressed">
               <ComboBox Name="ClickButtonCombo" Width="160">
                 <ComboBoxItem Content="Left button" />
@@ -110,13 +112,17 @@
             <local:SettingCard Title="After minutes" Description="Stop after clicking for this long">
               <TextBox Name="StopMinutesBox" Width="110" TextAlignment="Right" />
             </local:SettingCard>
-          </StackPanel></ScrollViewer>
+              </StackPanel>
+            </Grid>
+                    </StackPanel></ScrollViewer>
         </TabItem>
 
         <!-- ======================================================== Hold -->
         <TabItem Header="Hold">
           <ScrollViewer><StackPanel Margin="22,16,22,18" Spacing="8">
             <local:SectionHeader Title="Hold" Subtitle="Press and keep a key or mouse button down for you" />
+            <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+              <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,8,0">
             <Border Classes="card" Padding="16,12">
               <TextBlock Name="HoldStatusText" Text="Not holding" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentText}" />
             </Border>
@@ -126,8 +132,8 @@
             <local:SettingCard Title="Stop when the held key is used" Description="Stop the hold when you press or release the held key yourself">
               <ToggleSwitch Name="StopOnHeldKeySwitch" OnContent="{x:Null}" OffContent="{x:Null}" />
             </local:SettingCard>
-
-            <local:SectionHeader Title="What to hold" Subtitle="And which keys drive it" Margin="0,12,0,0" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="8" Margin="8,0,0,0">            <local:SectionHeader Title="What to hold" Subtitle="And which keys drive it" />
             <local:SettingCard Title="Hold" Description="A keyboard key, a mouse button or both">
               <ComboBox Name="HoldTargetCombo" Width="190">
                 <ComboBoxItem Content="Keyboard key" />
@@ -179,7 +185,9 @@
                 <TextBox Name="ExtendBox" Width="90" TextAlignment="Right" />
               </local:SettingCard>
             </StackPanel>
-          </StackPanel></ScrollViewer>
+              </StackPanel>
+            </Grid>
+                    </StackPanel></ScrollViewer>
         </TabItem>
 
         <!-- ======================================================== Settings -->
